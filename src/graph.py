@@ -95,7 +95,5 @@ def build_research_graph(interview_graph):
     builder.add_edge("finalize_report", END)
 
     memory = MemorySaver()
-    graph = builder.compile(
-        interrupt_before=['human_feedback'], checkpointer=memory
-    )
+    graph = builder.compile(checkpointer=memory)
     return graph

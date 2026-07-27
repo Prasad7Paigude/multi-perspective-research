@@ -1,6 +1,7 @@
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, get_buffer_string
 from langgraph.graph import END
 from langgraph.types import Send
+import json
 
 from config.settings import llm
 from src.state import (
@@ -20,9 +21,15 @@ from utils.tools import tavily_search, WikipediaLoader
 # ============================================================
 
 def create_analysts(state: GenerateAnalystsState):
+    """Generate AI analyst personas for the given topic."""
     topic = state['topic']
     max_analysts = state['max_analysts']
     human_analyst_feedback = state.get('human_analyst_feedback', '')
+    existing_analysts = state.get('analysts', [])
+
+    # If analysts already exist and no new feedback, skip LLM call
+    if existing_analysts and not human_analyst_feedback:
+        return {"analysts": existing_analysts[:max_analysts]}
 
     structured_llm = llm.with_structured_output(Perspectives)
     system_message = analyst_instructions.format(
@@ -30,11 +37,15 @@ def create_analysts(state: GenerateAnalystsState):
         human_analyst_feedback=human_analyst_feedback,
         max_analysts=max_analysts
     )
-    analysts = structured_llm.invoke(
-        [SystemMessage(content=system_message)] +
-        [HumanMessage(content="Generate the set of analysts.")]
-    )
-    return {"analysts": analysts.analysts}
+    try:
+        analysts = structured_llm.invoke(
+            [SystemMessage(content=system_message)] +
+            [HumanMessage(content="Generate the set of analysts.")]
+        )
+        return {"analysts": analysts.analysts[:max_analysts]}
+    except json.JSONDecodeError:
+        # Local model failed to produce valid JSON — return empty list
+        return {"analysts": []}
 
 
 def human_feedback(state: GenerateAnalystsState):
@@ -62,22 +73,38 @@ def generate_question(state: InterviewState):
     return {"messages": [question]}
 
 
+def _extract_search_query(state: InterviewState) -> str:
+    """Try to extract a structured search query, fallback to raw message text."""
+    try:
+        structured_llm = llm.with_structured_output(SearchQuery)
+        search_query = structured_llm.invoke([search_instructions] + state['messages'])
+        if search_query and search_query.search_query:
+            return search_query.search_query
+    except (json.JSONDecodeError, Exception):
+        pass
+    
+    # Fallback: use last message content
+    last_msg = state['messages'][-1].content if state['messages'] else ""
+    return last_msg[:200] if last_msg else "trending topics in AI"
+
+
 def search_web(state: InterviewState):
-    structured_llm = llm.with_structured_output(SearchQuery)
-    search_query = structured_llm.invoke([search_instructions] + state['messages'])
+    query = _extract_search_query(state)
 
-    # Handle None search_query from local model's structured output
-    query = search_query.search_query
-    if not query:
-        last_msg = state['messages'][-1].content if state['messages'] else ""
-        query = last_msg[:200] if last_msg else "trending topics in AI"
-
-    data = tavily_search.invoke({"query": query})
-    search_docs = data.get("results", data)
+    try:
+        data = tavily_search.invoke({"query": query})
+        if isinstance(data, dict):
+            search_docs = data.get("results", [])
+        elif isinstance(data, list):
+            search_docs = data
+        else:
+            search_docs = []
+    except Exception:
+        search_docs = []
 
     formatted_search_docs = "\n\n---\n\n".join(
         [
-            f'<Document href="{doc["url"]}"/>\n{doc["content"]}\n</Document>'
+            f'<Document href="{doc.get("url", "")}"/>\n{doc.get("content", str(doc))}\n</Document>'
             for doc in search_docs
         ]
     )
@@ -86,19 +113,15 @@ def search_web(state: InterviewState):
 
 
 def search_wikipedia(state: InterviewState):
-    structured_llm = llm.with_structured_output(SearchQuery)
-    search_query = structured_llm.invoke([search_instructions] + state['messages'])
+    query = _extract_search_query(state)
 
-    # Handle None search_query from local model's structured output
-    query = search_query.search_query
-    if not query:
-        last_msg = state['messages'][-1].content if state['messages'] else ""
-        query = last_msg[:200] if last_msg else "trending topics in AI"
-
-    search_docs = WikipediaLoader(
-        query=query,
-        load_max_docs=2
-    ).load()
+    try:
+        search_docs = WikipediaLoader(
+            query=query,
+            load_max_docs=2
+        ).load()
+    except Exception:
+        search_docs = []
 
     formatted_search_docs = "\n\n---\n\n".join(
         [
@@ -132,6 +155,10 @@ def save_interview(state: InterviewState):
 def route_messages(state: InterviewState, name: str = "expert"):
     messages = state["messages"]
     max_num_turns = state.get('max_num_turns', 2)
+
+    # Need at least 2 messages to check the last question
+    if len(messages) < 2:
+        return 'save_interview'
 
     num_responses = len(
         [m for m in messages if isinstance(m, AIMessage) and m.name == name]
@@ -171,11 +198,16 @@ def initiate_all_interviews(state: ResearchGraphState):
         return "create_analysts"
     else:
         topic = state["topic"]
+        max_num_turns = state.get("max_num_turns", 2)
         return [Send("conduct_interview", {
             "analyst": analyst,
+            "max_num_turns": max_num_turns,
             "messages": [HumanMessage(
                 content=f"So you said you were writing an article on {topic}?"
-            )]
+            )],
+            "context": [],
+            "interview": "",
+            "sections": [],
         }) for analyst in state["analysts"]]
 
 

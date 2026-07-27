@@ -1,0 +1,285 @@
+import json
+import uuid
+import asyncio
+from typing import Optional, AsyncGenerator
+
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
+from langchain_core.messages import HumanMessage
+
+from src.graph import (
+    build_analyst_graph,
+    build_interview_graph,
+    build_research_graph,
+)
+from src.state import Analyst, ResearchGraphState
+from api.schemas import (
+    ResearchInitRequest,
+    FeedbackRequest,
+    ApproveRequest,
+    ResearchStatusResponse,
+)
+
+
+# ============================================================
+# Application Setup
+# ============================================================
+
+app = FastAPI(
+    title="Research Assistant API",
+    description="Multi-perspective AI research analysis pipeline",
+    version="1.0.0",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Global graph instances (lazy-loaded)
+_analyst_graph = None
+_interview_graph = None
+_research_graph = None
+
+# In-memory session store
+sessions: dict = {}
+
+
+def get_graphs():
+    global _analyst_graph, _interview_graph, _research_graph
+    if _analyst_graph is None:
+        _analyst_graph = build_analyst_graph()
+        _interview_graph = build_interview_graph()
+        _research_graph = build_research_graph(_interview_graph)
+    return _analyst_graph, _interview_graph, _research_graph
+
+
+# ============================================================
+# Endpoints
+# ============================================================
+
+@app.post("/api/research/init", response_model=ResearchStatusResponse)
+async def init_research(request: ResearchInitRequest):
+    """Initialize a research session: generate analyst personas."""
+    analyst_graph, _, _ = get_graphs()
+    
+    thread_id = str(uuid.uuid4())
+    
+    sessions[thread_id] = {
+        "topic": request.topic,
+        "max_analysts": request.max_analysts,
+        "max_turns": request.max_turns,
+        "analysts": [],
+        "status": "analysts_pending",
+        "final_report": None,
+        "sections": [],
+    }
+
+    try:
+        loop = asyncio.get_event_loop()
+        events = await loop.run_in_executor(
+            None,
+            lambda: list(
+                analyst_graph.stream(
+                    {
+                        "topic": request.topic,
+                        "max_analysts": request.max_analysts,
+                    },
+                    {"configurable": {"thread_id": thread_id}},
+                    stream_mode="values",
+                )
+            ),
+        )
+        
+        for event in events:
+            if "analysts" in event:
+                sessions[thread_id]["analysts"] = event["analysts"]
+                
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    return ResearchStatusResponse(
+        thread_id=thread_id,
+        status="analysts_pending",
+        analysts=sessions[thread_id]["analysts"],
+    )
+
+
+@app.post("/api/research/feedback")
+async def submit_feedback(request: FeedbackRequest):
+    """Submit refinement feedback for analyst panel regeneration."""
+    analyst_graph, _, _ = get_graphs()
+    
+    if request.thread_id not in sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    session = sessions[request.thread_id]
+    thread = {"configurable": {"thread_id": request.thread_id}}
+    
+    try:
+        loop = asyncio.get_event_loop()
+        
+        await loop.run_in_executor(
+            None,
+            lambda: analyst_graph.update_state(
+                thread,
+                {"human_analyst_feedback": request.feedback or ""},
+                as_node="human_feedback",
+            ),
+        )
+        
+        events = await loop.run_in_executor(
+            None,
+            lambda: list(
+                analyst_graph.stream(
+                    None,
+                    thread,
+                    stream_mode="values",
+                )
+            ),
+        )
+        
+        for event in events:
+            if "analysts" in event:
+                session["analysts"] = event["analysts"]
+                
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+    return ResearchStatusResponse(
+        thread_id=request.thread_id,
+        status="analysts_pending",
+        analysts=session["analysts"],
+    )
+
+
+@app.post("/api/research/approve")
+async def approve_analysts(request: ApproveRequest):
+    """Approve analyst panel. The SSE stream / stream endpoint handles execution."""
+    if request.thread_id not in sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    sessions[request.thread_id]["status"] = "interviewing"
+    
+    return {"thread_id": request.thread_id, "status": "interviewing", "message": "Research pipeline ready"}
+
+
+@app.get("/api/research/stream/{thread_id}")
+async def stream_research(thread_id: str):
+    """SSE stream: runs the research graph with parallel map-reduce interviews."""
+    if thread_id not in sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    session = sessions[thread_id]
+    _, _, research_graph = get_graphs()
+    
+    topic = session["topic"]
+    max_analysts = session["max_analysts"]
+    analysts = session["analysts"]
+    
+    research_thread = {"configurable": {"thread_id": f"research_{thread_id}"}}
+    
+    async def event_generator():
+        loop = asyncio.get_event_loop()
+        
+        yield f"data: {json.dumps({'type': 'status', 'payload': 'Starting parallel expert interviews...'})}\n\n"
+        
+        try:
+            initial_state = {
+                "topic": topic,
+                "max_analysts": max_analysts,
+                "max_num_turns": session.get("max_turns", 2),
+                "human_analyst_feedback": None,
+                "analysts": analysts,
+                "sections": [],
+                "introduction": "",
+                "content": "",
+                "conclusion": "",
+                "final_report": "",
+            }
+            
+            events = await loop.run_in_executor(
+                None,
+                lambda: list(
+                    research_graph.stream(
+                        initial_state,
+                        research_thread,
+                        stream_mode="values",
+                    )
+                ),
+            )
+            
+            for event in events:
+                if "analysts" in event:
+                    continue  # Already have analysts
+                
+                payload = None
+                if "sections" in event and event["sections"]:
+                    # Each new section from parallel interviews
+                    section_text = event["sections"][-1]
+                    payload = {"type": "section", "payload": section_text}
+                    session["sections"] = event["sections"]
+                elif "content" in event and event["content"]:
+                    payload = {"type": "report", "payload": event["content"]}
+                elif "introduction" in event and event["introduction"]:
+                    payload = {"type": "introduction", "payload": event["introduction"]}
+                elif "conclusion" in event and event["conclusion"]:
+                    payload = {"type": "conclusion", "payload": event["conclusion"]}
+                elif "final_report" in event and event["final_report"]:
+                    payload = {"type": "final_report", "payload": event["final_report"]}
+                    session["final_report"] = event["final_report"]
+                    session["status"] = "complete"
+                
+                if payload:
+                    yield f"data: {json.dumps(payload)}\n\n"
+            
+            yield f"data: {json.dumps({'type': 'done', 'payload': ''})}\n\n"
+            
+        except Exception as e:
+            import traceback
+            tb = traceback.format_exc()
+            error_detail = f"{type(e).__name__}: {str(e)}"
+            yield f"data: {json.dumps({'type': 'error', 'payload': error_detail})}\n\n"
+    
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@app.get("/api/research/result/{thread_id}")
+async def get_result(thread_id: str):
+    """Get the final research report."""
+    if thread_id not in sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    session = sessions[thread_id]
+    
+    if session["status"] != "complete":
+        return {"thread_id": thread_id, "status": session["status"], "report": None}
+    
+    return {
+        "thread_id": thread_id,
+        "status": "complete",
+        "report": session["final_report"],
+        "sections": session["sections"],
+    }
+
+
+@app.get("/api/health")
+async def health():
+    return {"status": "ok"}
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

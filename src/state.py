@@ -52,6 +52,7 @@ class InterviewState(MessagesState):
 class ResearchGraphState(TypedDict):
     topic: str
     max_analysts: int
+    max_num_turns: int
     human_analyst_feedback: str
     analysts: List[Analyst]
     sections: Annotated[list, operator.add]
