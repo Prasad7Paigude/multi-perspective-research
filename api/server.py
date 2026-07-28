@@ -1,6 +1,7 @@
 import json
 import uuid
 import asyncio
+import time
 from typing import Optional, AsyncGenerator
 
 from fastapi import FastAPI, HTTPException
@@ -67,7 +68,8 @@ async def init_research(request: ResearchInitRequest):
     """Initialize a research session: generate analyst personas."""
     analyst_graph, _, _ = get_graphs()
     
-    thread_id = str(uuid.uuid4())
+    # Generate unique thread ID with timestamp to prevent collisions
+    thread_id = f"{int(time.time())}-{str(uuid.uuid4())}"
     
     sessions[thread_id] = {
         "topic": request.topic,
@@ -100,7 +102,16 @@ async def init_research(request: ResearchInitRequest):
                 sessions[thread_id]["analysts"] = event["analysts"]
                 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        # Clean up session on error
+        if thread_id in sessions:
+            del sessions[thread_id]
+        # Provide more detailed error information
+        error_detail = f"Failed to generate analysts: {str(e)}"
+        if "connection refused" in str(e).lower() or "connection error" in str(e).lower():
+            error_detail = "LLM service unavailable. Please check your LLM provider configuration and ensure the service is running."
+        elif "api key" in str(e).lower():
+            error_detail = "Invalid API key. Please check your LLM provider API key configuration."
+        raise HTTPException(status_code=500, detail=error_detail)
 
     return ResearchStatusResponse(
         thread_id=thread_id,
@@ -148,7 +159,16 @@ async def submit_feedback(request: FeedbackRequest):
                 session["analysts"] = event["analysts"]
                 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        # Clean up session on error
+        if request.thread_id in sessions:
+            del sessions[request.thread_id]
+        # Provide more detailed error information
+        error_detail = f"Failed to process feedback: {str(e)}"
+        if "connection refused" in str(e).lower() or "connection error" in str(e).lower():
+            error_detail = "LLM service unavailable. Please check your LLM provider configuration and ensure the service is running."
+        elif "api key" in str(e).lower():
+            error_detail = "Invalid API key. Please check your LLM provider API key configuration."
+        raise HTTPException(status_code=500, detail=error_detail)
     
     return ResearchStatusResponse(
         thread_id=request.thread_id,
@@ -216,7 +236,7 @@ async def stream_research(thread_id: str):
             for event in events:
                 if "analysts" in event:
                     continue  # Already have analysts
-                
+
                 payload = None
                 if "sections" in event and event["sections"]:
                     # Each new section from parallel interviews
@@ -233,7 +253,7 @@ async def stream_research(thread_id: str):
                     payload = {"type": "final_report", "payload": event["final_report"]}
                     session["final_report"] = event["final_report"]
                     session["status"] = "complete"
-                
+
                 if payload:
                     yield f"data: {json.dumps(payload)}\n\n"
             

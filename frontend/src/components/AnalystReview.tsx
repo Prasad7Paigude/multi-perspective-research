@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Users, MessageSquare, ArrowRight, RotateCcw, Sparkles } from 'lucide-react';
+import { Users, MessageSquare, ArrowRight, RotateCcw } from 'lucide-react';
 import type { Analyst } from '../types';
 import AnalystCard from './AnalystCard';
 

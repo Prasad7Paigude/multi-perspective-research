@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MessageSquare, Users, ListTree, Sparkles } from 'lucide-react';
+import { MessageSquare, Users, Sparkles } from 'lucide-react';
 
 interface ResearchSetupProps {
   onStart: (topic: string, maxAnalysts: number, maxTurns: number) => void;

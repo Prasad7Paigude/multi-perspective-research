@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import type { Analyst, SSEEvent, SessionState } from '../types';
+import type { SSEEvent, SessionState } from '../types';
 
 const API_BASE = '/api';
 
@@ -14,6 +14,7 @@ function useResearch() {
     sections: [],
     finalReport: null,
     error: null,
+    interviewProgress: { current: 0, total: 0 },
   });
   const eventSourceRef = useRef<EventSource | null>(null);
 
@@ -120,10 +121,34 @@ function useResearch() {
           case 'status':
             // Just a status update, keep current state
             break;
+          case 'interview_progress':
+            setState(prev => ({
+              ...prev,
+              interviewProgress: data.payload,
+            }));
+            break;
           case 'section':
             setState(prev => ({
               ...prev,
               sections: [...prev.sections, data.payload],
+            }));
+            break;
+          case 'report':
+            setState(prev => ({
+              ...prev,
+              sections: [...prev.sections, data.payload],
+            }));
+            break;
+          case 'introduction':
+            setState(prev => ({
+              ...prev,
+              introduction: data.payload,
+            }));
+            break;
+          case 'conclusion':
+            setState(prev => ({
+              ...prev,
+              conclusion: data.payload,
             }));
             break;
           case 'final_report':
@@ -180,6 +205,7 @@ function useResearch() {
       sections: [],
       finalReport: null,
       error: null,
+      interviewProgress: { current: 0, total: 0 },
     });
   }, []);
 

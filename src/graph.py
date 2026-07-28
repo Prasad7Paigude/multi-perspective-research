@@ -58,8 +58,8 @@ def build_interview_graph():
     interview_builder.add_edge("save_interview", "write_section")
     interview_builder.add_edge("write_section", END)
 
-    memory = MemorySaver()
-    interview_graph = interview_builder.compile(checkpointer=memory).with_config(
+    # No checkpointer needed for sub-graph — Send handles parallelism
+    interview_graph = interview_builder.compile().with_config(
         run_name="Conduct Interviews"
     )
     return interview_graph

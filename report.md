@@ -1,288 +1,259 @@
-# Research Assistant - Test Report
+# Research Assistant --- Comprehensive Test Report
 
 ## Test Information
 
 | Field | Value |
-|-------|-------|
-| **Test Date** | 2026-07-26 16:08:01 |
-| **Topic** | Trending Topics in AI |
-| **Human Feedback** | Have one persona from Google R&D Team |
-| **Max Analysts** | 3 |
-| **Pipeline Analysts** | 1 |
-| **LLM Provider** | Ollama (Local) |
-| **LLM Model** | llama3.2:3b |
-| **Overall Status** | PASSED |
+|---|---|
+| **Test Date** | 2026-07-28 |
+| **Project Root** | D:\\Desktop\\Projects\\Research Assistant |
+| **Python Env** | lc-academy-env (3.12.6) |
+| **Node.js** | Available |
+| **Ollama** | NOT installed / NOT running |
+| **LLM Config** | ChatOllama (model: llama3.2:3b) |
+| **API Server** | FastAPI |
+| **Frontend** | React + TypeScript + Vite + Tailwind v4 |
 
 ---
 
-## Step-by-Step Execution Log
+## 1. Architecture Overview
 
-### Step 1: Graph Initialization
+User Browser (React SPA) <-> HTTP/SSE <-> FastAPI Backend (api/server.py) <-> LangGraph Engine (src/graph.py) <-> LLM (Ollama) + Tavily + Wikipedia
 
-| Field | Detail |
-|-------|--------|
-| **Status** | ✅ PASS |
-| **Time** | 2026-07-26T16:02:30.877755 |
-| **Details** | All 3 graphs built successfully |
-
----
-### Step 2: Analyst Generation (Initial)
-
-| Field | Detail |
-|-------|--------|
-| **Status** | ✅ PASS |
-| **Time** | 2026-07-26T16:02:39.824874 |
-| **Details** | Generated 3 analysts. Paused at: ('human_feedback',) |
-
----
-### Step 3: Human Feedback Input
-
-| Field | Detail |
-|-------|--------|
-| **Status** | ✅ PASS |
-| **Time** | 2026-07-26T16:02:39.826965 |
-| **Details** | Feedback provided: 'Have one persona from Google R&D Team' |
-
----
-### Step 4: Analyst Regeneration with Feedback
-
-| Field | Detail |
-|-------|--------|
-| **Status** | ✅ PASS |
-| **Time** | 2026-07-26T16:02:51.545772 |
-| **Details** | Regenerated 5 analysts after feedback |
-
-- **Dr. Rachel Kim** | Google R&D Team | AI Researcher
-- **Dr. Liam Chen** | Microsoft Research Team | AI Ethics Specialist
-- **Dr. Sofia Patel** | IBM Research Team | AI Business Strategist
-- **Dr. Julian Sanchez** | Facebook AI Research Team | AI Model Developer
-- **Dr. Maya Jensen** | Stanford University AI Lab | AI Theoretical Researcher
----
-### Step 5: Single Interview Test
-
-| Field | Detail |
-|-------|--------|
-| **Status** | ✅ PASS |
-| **Time** | 2026-07-26T16:03:46.799117 |
-| **Details** | Interview section generated (2964 chars) |
-
----
-### Step 6: Full Research Pipeline
-
-| Field | Detail |
-|-------|--------|
-| **Status** | ✅ PASS |
-| **Time** | 2026-07-26T16:08:01.642829 |
-| **Details** | Final report generated (5451 chars) |
+Flow: Init Topic -> Generate Analysts -> Human Feedback(optional) -> Approve -> SSE Stream (Interviews -> Report)
 
 ---
 
-## Raw Execution Log (JSON)
+## 2. Test Results Summary
 
-```json
-[
-  {
-    "step": "Graph Initialization",
-    "status": "PASS",
-    "timestamp": "2026-07-26T16:02:30.877755",
-    "details": "All 3 graphs built successfully",
-    "error": null
-  },
-  {
-    "step": "Analyst Generation (Initial)",
-    "status": "PASS",
-    "timestamp": "2026-07-26T16:02:39.824874",
-    "details": "Generated 3 analysts. Paused at: ('human_feedback',)",
-    "error": null
-  },
-  {
-    "step": "Human Feedback Input",
-    "status": "PASS",
-    "timestamp": "2026-07-26T16:02:39.826965",
-    "details": "Feedback provided: 'Have one persona from Google R&D Team'",
-    "error": null
-  },
-  {
-    "step": "Analyst Regeneration with Feedback",
-    "status": "PASS",
-    "timestamp": "2026-07-26T16:02:51.545772",
-    "details": "Regenerated 5 analysts after feedback",
-    "error": {
-      "approved_analysts": [
-        {
-          "name": "Dr. Rachel Kim",
-          "affiliation": "Google R&D Team",
-          "role": "AI Researcher",
-          "description": "Expert in natural language processing and computer vision, Dr. Kim is responsible for developing new AI algorithms that can be applied to various industries."
-        },
-        {
-          "name": "Dr. Liam Chen",
-          "affiliation": "Microsoft Research Team",
-          "role": "AI Ethics Specialist",
-          "description": "With a focus on explainability and fairness, Dr. Chen works with companies to develop AI systems that are transparent and unbiased."
-        },
-        {
-          "name": "Dr. Sofia Patel",
-          "affiliation": "IBM Research Team",
-          "role": "AI Business Strategist",
-          "description": "As an expert in AI adoption and implementation, Dr. Patel helps organizations integrate AI into their existing infrastructure and develop business strategies around its use."
-        },
-        {
-          "name": "Dr. Julian Sanchez",
-          "affiliation": "Facebook AI Research Team",
-          "role": "AI Model Developer",
-          "description": "Specializing in deep learning and reinforcement learning, Dr. Sanchez develops new AI models that can be applied to various applications such as computer vision and natural language processing."
-        },
-        {
-          "name": "Dr. Maya Jensen",
-          "affiliation": "Stanford University AI Lab",
-          "role": "AI Theoretical Researcher",
-          "description": "With a focus on theoretical AI research, Dr. Jensen explores the fundamental limits of artificial intelligence and develops new mathematical frameworks for understanding its behavior."
-        }
-      ]
-    }
-  },
-  {
-    "step": "Single Interview Test",
-    "status": "PASS",
-    "timestamp": "2026-07-26T16:03:46.799117",
-    "details": "Interview section generated (2964 chars)",
-    "error": {
-      "section_preview": "The provided text is a collection of documents related to Natural Language Processing (NLP) and Artificial Intelligence (AI). Here's a summary of the main points:\n\n**Natural Language Processing**\n\n* NLP is the processing of natural language information by a computer.\n* It is a subfield of computer s"
-    }
-  },
-  {
-    "step": "Full Research Pipeline",
-    "status": "PASS",
-    "timestamp": "2026-07-26T16:08:01.642829",
-    "details": "Final report generated (5451 chars)",
-    "error": {
-      "report_preview": "# # Trending Topics in AI\n## Introduction\n\nTrendy topics in AI encompass a wide range of advancements and applications that are transforming industries and revolutionizing the way we live and work. This report delves into the latest developments in Natural Language Processing (NLP) and computer vision, highlighting their significance in various fields such as agriculture, software development, architecture, business, telehealth, and more. The report also explores the challenges and future direct"
-    }
-  }
-]
-```
+| Component | Status | Details |
+|---|---|---|
+| Python module imports | PASS | All modules import cleanly |
+| Graph initialization | PASS | All 3 graphs (analyst, interview, research) build OK |
+| API server startup | PASS | Uvicorn serves successfully |
+| GET /api/health | PASS | Returns ok |
+| POST /api/research/init | FAIL | Server crashes --- see Section 3 |
+| POST /api/research/feedback | UNTESTABLE | Depends on init working |
+| POST /api/research/approve | UNTESTABLE | Depends on init working |
+| GET /api/research/stream/{id} | UNTESTABLE | Depends on init working |
+| GET /api/research/result/{id} | UNTESTABLE | Depends on init working |
+| Frontend npm install | PASS | Dependencies install cleanly |
+| Frontend npm run build | FAIL | 4 TypeScript errors |
+| Frontend dist/ (pre-built) | EXISTS | Pre-built version available |
 
 ---
 
-## Input Summary
+## 3. Critical Issues Found
 
-- **Topic:** `Trending Topics in AI`
-- **Human Response at Interruption:** `Have one persona from Google R&D Team`
-- **Max Analysts (Initial):** 3
-- **Max Analysts (Research Pipeline):** 1
-- **Interview Max Turns:** 2
-- **LLM Provider:** Ollama (Local)
-- **LLM Model:** llama3.2:3b
-- **Web Search:** Tavily
-- **Wikipedia:** Enabled
+### CRITICAL 1: LLM Provider Mismatch (Configuration Broken)
 
-## Output Summary
+Files: config/settings.py (line 4, 10-13) vs .env (lines 1-3)
 
+settings.py uses ChatOllama (requires langchain-ollama package), but .env contains GROQ_API_KEY (needs langchain-groq).
 
-### Approved Analysts
+- langchain-ollama is MISSING from requirements.txt
+- .env contains GROQ_API_KEY which is NEVER read by settings.py
+- Neither langchain-groq nor langchain-ollama are in requirements.txt
+- Ollama is not installed on this system, so all LLM calls fail
 
-| # | Name | Affiliation | Role | Description |
-|---|------|-------------|------|-------------|
-| 1 | Dr. Rachel Kim | Google R&D Team | AI Researcher | Expert in natural language processing and computer vision, Dr. Kim is responsible for developing new AI algorithms that can be applied to various industries. |
-| 2 | Dr. Liam Chen | Microsoft Research Team | AI Ethics Specialist | With a focus on explainability and fairness, Dr. Chen works with companies to develop AI systems that are transparent and unbiased. |
-| 3 | Dr. Sofia Patel | IBM Research Team | AI Business Strategist | As an expert in AI adoption and implementation, Dr. Patel helps organizations integrate AI into their existing infrastructure and develop business strategies around its use. |
-| 4 | Dr. Julian Sanchez | Facebook AI Research Team | AI Model Developer | Specializing in deep learning and reinforcement learning, Dr. Sanchez develops new AI models that can be applied to various applications such as computer vision and natural language processing. |
-| 5 | Dr. Maya Jensen | Stanford University AI Lab | AI Theoretical Researcher | With a focus on theoretical AI research, Dr. Jensen explores the fundamental limits of artificial intelligence and develops new mathematical frameworks for understanding its behavior. |
-
-### Interview Section (Preview)
-
-Character count: 2964
-
-```markdown
-The provided text is a collection of documents related to Natural Language Processing (NLP) and Artificial Intelligence (AI). Here's a summary of the main points:
-
-**Natural Language Processing**
-
-* NLP is the processing of natural language information by a computer.
-* It is a subfield of computer science and is closely associated with artificial intelligence.
-* Major processing tasks in an NLP system include speech recognition, text classification, natural language understanding, and natural language generation.
-
-**History of NLP**
-
-* The Georgetown experiment in 1954 involved fully automatic translation of more than sixty Russian sentences into English.
-* The ALPAC report in 1966 found that ten years of research had failed to fulfill the expectations for machine translation.
-* In the 197...
-```
-
-### Final Report
-
-Character count: 5451
-
-```markdown
-# # Trending Topics in AI
-## Introduction
-
-Trendy topics in AI encompass a wide range of advancements and applications that are transforming industries and revolutionizing the way we live and work. This report delves into the latest developments in Natural Language Processing (NLP) and computer vision, highlighting their significance in various fields such as agriculture, software development, architecture, business, telehealth, and more. The report also explores the challenges and future directions of NLP research, including understanding context and improving model interpretability. Additionally, it discusses the applications of AI, including generative artificial intelligence (GenAI), which has made significant advancements in creating text, images, music, videos, and other forms of data.
+Impact: Every LLM-dependent endpoint crashes on first use.
 
 ---
 
+### CRITICAL 2: Missing Dependencies in requirements.txt
 
+Missing Package | Needed By | Why
+fastapi | api/server.py | API framework
+uvicorn | start_api.sh | ASGI server
+langchain-ollama | config/settings.py | Current LLM provider
+langchain-groq | .env | Alternative LLM provider
+requests | test_run.py | HTTP calls
 
-The memos from the analysts provide valuable insights into the current state of Artificial Intelligence (AI), Natural Language Processing (NLP), and Generative AI. The reports highlight the rapid progress being made in these fields, as well as the challenges and limitations that need to be addressed.
-
-One of the key takeaways from the memos is the importance of NLP in enabling machines to interpret, comprehend, and generate human language. Large language models (LLMs), transformer architectures, and multimodal AI systems have advanced significantly, allowing for nuanced understanding, emotion recognition, and context awareness. However, these advancements also raise concerns about hallucinations in AI, which can be detrimental in high-stakes scenarios like medical diagnostics or chip design.
-
-The memos also highlight the growing applications of AI in various fields, including agriculture, software development, architecture, business, telehealth, and more. Generative artificial intelligence (GenAI) has made significant advancements, enabling the creation of text, images, music, videos, and other forms of data. However, these advancements also raise concerns about cybersecurity and technical debt.
-
-The reports emphasize the need for careful consideration and responsible development of AI technologies to ensure their benefits are realized while minimizing risks. This includes addressing challenges like understanding context and improving model interpretability in NLP, as well as ensuring that AI systems are transparent and explainable.
-
-## Challenges and Future Directions
-
-The memos also highlight several challenges and future directions in the field of AI. One of the key challenges is the need for more effective content moderation strategies to address the spread of misinformation and disinformation online. Generative AI tools, in particular, pose a significant challenge in this regard, as they can be used to create convincing but false or misleading content.
-
-Another challenge highlighted in the memos is the need for more effective reinforcement learning algorithms to train agents to perform complex tasks in various domains. This includes addressing challenges like exploration-exploitation dilemmas and sparse rewards, which can make it difficult for agents to learn from their environment.
-
-## Applications of AI
-
-The memos also provide valuable insights into the applications of AI in various fields. One of the key areas highlighted is the use of AI in software development, where AI-assisted tools can increase productivity but also raise concerns about cybersecurity and technical debt.
-
-Another area highlighted is the use of AI in healthcare, where AI-powered chatbots and virtual assistants are being used to improve patient outcomes and streamline clinical workflows. However, these applications also raise concerns about data privacy and security.
-
-## Conclusion
-
-In conclusion, the memos from the analysts provide valuable insights into the current state of Artificial Intelligence (AI), Natural Language Processing (NLP), and Generative AI. The reports highlight the rapid progress being made in these fields, as well as the challenges and limitations that need to be addressed. To ensure the benefits of AI are realized while minimizing risks, it is essential to prioritize responsible development and deployment of AI technologies.
-
+Users cloning and running pip install -r requirements.txt cannot start the API.
 
 ---
 
-## Conclusion
+### CRITICAL 3: API Server Crashes on /api/research/init
 
-The provided text highlights the rapid progress being made in NLP and computer vision, as well as their applications in various fields. The importance of considering practical considerations, improving model accuracy, and advancing LLMs is emphasized. The evolution of AI, ML, and DL research is also discussed, with a focus on addressing challenges like understanding context and improving model interpretability.
+File: api/server.py (lines 82-96)
 
-The text provides valuable insights into the current state of AI, highlighting its potential benefits and risks. It emphasizes the need for responsible development and deployment of these technologies to ensure their safe and beneficial use. The importance of content moderation and Generative AI is also discussed, with a focus on addressing concerns around cybercrime, manipulation, and other malicious activities.
+When init is called, analyst_graph.stream() runs inside loop.run_in_executor().
+Since Ollama is not running, the httpx connection to localhost:11434 fails with
+connection refused, and the server process crashes with no recovery.
 
-Overall, this report provides a comprehensive overview of trending topics in AI, highlighting the latest advancements and challenges in NLP, computer vision, and Generative AI. It serves as a valuable resource for researchers, practitioners, and policymakers seeking to understand the current state of these technologies and their potential impact on society.
-
-## Sources
-
-1. [Source 1]
-2. [Source 2]
-```
-
-
-## Key Observations
-
-- **Graph Initialization:** ✅ Passed
-- **Analyst Generation:** ✅ Passed
-- **Human Feedback Integration:** ✅ Passed
-- **Interview Execution:** ✅ Passed
-- **Research Pipeline:** ✅ Passed
-
-## Configuration Details
-
-- **Python Version:** 3.12.6 (tags/v3.12.6:a4a2d2b, Sep  6 2024, 20:11:23) [MSC v.1940 64 bit (AMD64)]
-- **LLM Backend:** Ollama (langchain-ollama)
-- **Model:** llama3.2:3b
-- **Web Search:** Tavily
-- **Wikipedia:** Enabled
-- **Checkpointer:** MemorySaver (in-memory)
+Root cause: No fallback or graceful error when the LLM backend is unreachable.
 
 ---
 
-*Report generated automatically by test_run.py*
+### CRITICAL 4: Frontend TypeScript Build Fails
+
+4 TypeScript errors block fresh npm run build:
+
+- AnalystCard.tsx(1,10): User imported but never used
+- AnalystReview.tsx(2,55): Sparkles imported but never used
+- ResearchSetup.tsx(2,32): ListTree imported but never used
+- useResearch.ts(2,15): Analyst type imported but never used
+
+A pre-built dist/ exists but any code change requires a successful build.
+
+---
+
+### HIGH 5: SSE Event Handling Gap (Frontend Ignores Server Events)
+
+Server sends these event types. Frontend ignores report, introduction, conclusion:
+
+- status -> handled (no-op)
+- section -> handled (appended)
+- report -> IGNORED by frontend
+- introduction -> IGNORED by frontend
+- conclusion -> IGNORED by frontend
+- final_report -> handled (displayed)
+- done -> handled (close)
+- error -> handled (displayed)
+
+Impact: ResearchProgress never shows introduction/conclusion status updates.
+
+---
+
+### HIGH 6: Research Progress Step Logic Bug
+
+File: frontend/src/components/ResearchProgress.tsx (lines 16-25)
+
+The 3-step indicator (Analysts=0, Interviews=1, Report=2) has incorrect logic:
+
+- When sections arrive (interviews done) -> sets step=1 (should be 2)
+- When complete -> sets step=2 (should be 3)
+- Initial is 1 which shows interviews active before they start
+
+---
+
+### HIGH 7: Thread ID Collision Risk
+
+File: api/server.py (lines 70, 184)
+
+Session thread IDs are UUIDs (unique). SSE endpoint creates research_{thread_id}.
+If a user re-initiates research for the same session, the research_{thread_id}
+could potentially collide.
+
+---
+
+### MEDIUM 8: Extra Fields in Send() Payload
+
+File: src/nodes.py (lines 202-211)
+
+initiate_all_interviews passes context, interview, sections fields in the Send()
+payload. These are already initialized as empty defaults in InterviewState.
+Harmless but unnecessary.
+
+---
+
+### MEDIUM 9: test_run.py Hardcoded Wrong Provider
+
+File: test_run.py (lines 291-292)
+
+Report template hardcodes LLM Provider as Groq with model llama-3.1-8b-instant,
+but settings.py uses ChatOllama with llama3.2:3b.
+
+---
+
+### MEDIUM 10: No Per-Interview Progress in SSE
+
+File: api/server.py (lines 206-238)
+
+For N analysts, the SSE sends N section events but the frontend has no way to
+track which interview is currently running (e.g., Interview 2 of 4).
+
+---
+
+### LOW 11: Unused CSS in App.css (180 lines)
+
+File: frontend/src/App.css
+
+Contains .counter, .hero, .base, .framework, .vite, .ticks -- none used by any component.
+
+---
+
+### LOW 12: Source index.html Wrong Dev Title
+
+File: frontend/index.html (line 7)
+
+Title is frontend. The built dist/index.html correctly has Research Assistant.
+
+---
+
+## 4. API Endpoint Summary
+
+Method | Endpoint | Expected Behavior | Result
+GET | /api/health | Returns ok | PASS
+POST | /api/research/init | Generate analysts, return thread + analysts | FAIL (crash)
+POST | /api/research/feedback | Refine analysts | UNTESTABLE
+POST | /api/research/approve | Mark interviewing | UNTESTABLE
+GET | /api/research/stream/{id} | SSE interview progress | UNTESTABLE
+GET | /api/research/result/{id} | Get final report | UNTESTABLE
+
+---
+
+## 5. Frontend Execution Flow Trace
+
+User opens http://localhost:5173
+  -> App.tsx renders ResearchSetup (status=idle)
+  -> User fills topic, clicks Begin Research
+  -> useResearch.initResearch()
+      -> POST /api/research/init -> status=generating_analysts
+      -> On success -> status=analysts_pending, shows AnalystReview
+      -> User can provide feedback -> POST /api/research/feedback
+      -> User clicks Proceed -> approveAnalysts()
+          -> POST /api/research/approve -> status=interviewing
+          -> EventSource connects to /api/research/stream/{thread_id}
+          -> SSE events: status -> section -> ... -> final_report -> done
+          -> status=complete, shows FinalReport
+
+Blocking point: POST /api/research/init fails (LLM crashes server).
+
+---
+
+## 6. Configuration Matrix
+
+Current (settings.py): ChatOllama, needs langchain-ollama, Ollama local, NOT working
+Env says (.env): GROQ_API_KEY, needs langchain-groq, NOT configured in code
+Previous (Gemini): ChatGoogleGenerativeAI, needs langchain-google-genai, installed
+
+---
+
+## 7. Quick-Fix Priority
+
+P0: Align settings.py LLM provider with .env (5 min) - Unblocks all LLM calls
+P0: Add missing deps to requirements.txt (2 min) - Fresh installs work
+P0: Remove 4 unused frontend imports (2 min) - Frontend builds
+P1: Handle LLM errors gracefully in API server (15 min) - No more crashes
+P1: Fix ResearchProgress step indicator logic (5 min) - Correct progress
+P1: Update test_run.py to read LLM config dynamically (10 min) - Accurate reports
+P2: Handle report/intro/conclusion SSE events in frontend (10 min) - Better UX
+P2: Remove unused App.css boilerplate (5 min) - Cleaner code
+P3: Fix index.html dev title (1 min) - Polish
+
+---
+
+## 8. Conclusion
+
+The project has a well-structured multi-agent architecture with clean separation
+across config/, src/, utils/, api/, and frontend/. The LangGraph pipeline design
+(analyst generation -> interviews -> report) is sound.
+
+However, the project is currently non-functional end-to-end due to:
+
+1. LLM provider mismatch between settings.py (ChatOllama) and .env (GROQ_API_KEY)
+2. Missing runtime dependencies in requirements.txt
+3. API server crashes on any LLM-dependent call
+4. Frontend build failure from unused TypeScript imports
+
+The critical path to fix:
+1. Pick one LLM provider (Ollama, Groq, or Gemini)
+2. Update config/settings.py and .env consistently
+3. Add all required packages to requirements.txt
+4. Clean up the 4 unused frontend imports
+
+After these fixes, the expected user flow should work end-to-end.
+
+---
+
+*Report generated by comprehensive codebase analysis on 2026-07-26*

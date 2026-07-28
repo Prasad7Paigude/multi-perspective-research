@@ -1,4 +1,4 @@
-import { User, Building2, Target } from 'lucide-react';
+import { Building2, Target } from 'lucide-react';
 import type { Analyst } from '../types';
 
 interface AnalystCardProps {

@@ -11,6 +11,7 @@ existing graph, nodes, and state from the project.
 
 import sys
 import json
+import os
 from datetime import datetime
 from langchain_core.messages import HumanMessage
 
@@ -19,6 +20,7 @@ from src.graph import (
     build_interview_graph,
     build_research_graph
 )
+from config.settings import LLM_PROVIDER
 
 # ============================================================
 # Test Configuration
@@ -277,6 +279,22 @@ print("\n" + "=" * 70)
 print("TEST EXECUTION COMPLETE")
 print("=" * 70)
 
+# Get LLM provider and model information
+llm_provider = "Unknown"
+llm_model = "Unknown"
+
+if LLM_PROVIDER == "groq":
+    llm_provider = "Groq"
+    llm_model = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
+elif LLM_PROVIDER == "ollama":
+    llm_provider = "Ollama"
+    llm_model = "llama3.2:3b"
+elif LLM_PROVIDER == "gemini":
+    llm_provider = "Gemini"
+    llm_model = "gemini-1.5-pro"
+else:
+    llm_provider = LLM_PROVIDER
+
 report_content = f"""# Research Assistant - Test Report
 
 ## Test Information
@@ -288,8 +306,8 @@ report_content = f"""# Research Assistant - Test Report
 | **Human Feedback** | {HUMAN_FEEDBACK} |
 | **Max Analysts** | {MAX_ANALYSTS} |
 | **Pipeline Analysts** | {PIPELINE_ANALYSTS} |
-| **LLM Provider** | Groq |
-| **LLM Model** | llama-3.1-8b-instant |
+| **LLM Provider** | {llm_provider} |
+| **LLM Model** | {llm_model} |
 | **Overall Status** | {"PASSED" if test_passed else "FAILED"} |
 
 ---
@@ -338,8 +356,8 @@ report_content += f"""
 - **Max Analysts (Initial):** {MAX_ANALYSTS}
 - **Max Analysts (Research Pipeline):** {PIPELINE_ANALYSTS}
 - **Interview Max Turns:** {INTERVIEW_TURNS}
-- **LLM Provider:** Groq (free API)
-- **LLM Model:** llama-3.1-8b-instant
+- **LLM Provider:** {llm_provider}
+- **LLM Model:** {llm_model}
 - **Web Search:** Tavily
 - **Wikipedia:** Enabled
 
@@ -391,8 +409,8 @@ report_content += f"""
 ## Configuration Details
 
 - **Python Version:** {sys.version}
-- **LLM Backend:** Groq (langchain-groq)
-- **Model:** llama-3.1-8b-instant
+- **LLM Backend:** {llm_provider} ({f"langchain-{LLM_PROVIDER}" if LLM_PROVIDER != "gemini" else "langchain-google-genai"})
+- **Model:** {llm_model}
 - **Web Search:** Tavily
 - **Wikipedia:** Enabled
 - **Checkpointer:** MemorySaver (in-memory)

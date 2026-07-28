@@ -13,14 +13,14 @@ const steps = [
 ];
 
 function ResearchProgress({ sections, isComplete }: ResearchProgressProps) {
-  const [currentStep, setCurrentStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState(0);
 
   useEffect(() => {
     if (sections.length > 0) {
-      setCurrentStep(1);
+      setCurrentStep(2); // Interviews complete, report synthesis in progress
     }
     if (isComplete) {
-      setCurrentStep(2);
+      setCurrentStep(3); // Complete
     }
   }, [sections.length, isComplete]);
 

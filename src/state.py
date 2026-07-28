@@ -42,17 +42,22 @@ class SearchQuery(BaseModel):
 
 
 class InterviewState(MessagesState):
-    max_num_turns: int
+    max_num_turns: Annotated[int, lambda x, y: y]  # use latest value
     context: Annotated[list, operator.add]
-    analyst: Analyst
+    analyst: Annotated[Analyst, lambda c, n: n or c]  # keep existing or use new
     interview: str
-    sections: list
+    sections: Annotated[list, operator.add]
+
+
+def _reduce_max_turns(current: int, new: int) -> int:
+    """Reducer for max_num_turns: accept any value (all parallel interviews use the same)."""
+    return new
 
 
 class ResearchGraphState(TypedDict):
     topic: str
     max_analysts: int
-    max_num_turns: int
+    max_num_turns: Annotated[int, _reduce_max_turns]
     human_analyst_feedback: str
     analysts: List[Analyst]
     sections: Annotated[list, operator.add]

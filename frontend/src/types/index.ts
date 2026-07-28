@@ -27,4 +27,6 @@ export interface SessionState {
   sections: string[];
   finalReport: string | null;
   error: string | null;
+  introduction?: string;
+  conclusion?: string;
 }
