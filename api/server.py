@@ -206,7 +206,9 @@ async def stream_research(thread_id: str):
     async def event_generator():
         loop = asyncio.get_event_loop()
         
+        # Send initial status
         yield f"data: {json.dumps({'type': 'status', 'payload': 'Starting parallel expert interviews...'})}\n\n"
+        await asyncio.sleep(0)  # Force flush
         
         try:
             initial_state = {
@@ -222,47 +224,135 @@ async def stream_research(thread_id: str):
                 "final_report": "",
             }
             
-            events = await loop.run_in_executor(
-                None,
-                lambda: list(
-                    research_graph.stream(
+            print(f"[DEBUG] Initial state: topic={topic}, max_analysts={max_analysts}, analysts_count={len(analysts)}")
+            print(f"[DEBUG] Research thread: {research_thread}")
+            
+            print("[DEBUG] Starting research graph stream...")
+            
+            # Run stream in executor and yield events as they come
+            # We iterate the stream directly in the executor to avoid blocking
+            def run_stream():
+                try:
+                    events = []
+                    for event in research_graph.stream(
                         initial_state,
                         research_thread,
                         stream_mode="values",
-                    )
-                ),
-            )
+                    ):
+                        events.append(event)
+                    return events
+                except Exception as e:
+                    print(f"[DEBUG] Stream execution error: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    raise
             
-            for event in events:
-                if "analysts" in event:
-                    continue  # Already have analysts
+            # Run with timeout
+            try:
+                events = await asyncio.wait_for(
+                    loop.run_in_executor(None, run_stream),
+                    timeout=300.0  # 5 minute timeout
+                )
+            except asyncio.TimeoutError:
+                print("[DEBUG] Stream execution timed out after 300 seconds")
+                yield f"data: {json.dumps({'type': 'error', 'payload': 'Research execution timed out'})}\n\n"
+                return
+            except Exception as e:
+                print(f"[DEBUG] Stream execution failed: {e}")
+                import traceback
+                traceback.print_exc()
+                yield f"data: {json.dumps({'type': 'error', 'payload': f'Research execution failed: {str(e)}'})}\n\n"
+                return
+            
+            print(f"[DEBUG] Total events from stream: {len(events)}")
+            for i, event in enumerate(events):
+                print(f"[DEBUG] Event {i+1} keys: {list(event.keys())}")
+                if "sections" in event:
+                    print(f"[DEBUG]   Sections: {len(event['sections']) if event['sections'] else 0}")
+                if "final_report" in event:
+                    print(f"[DEBUG]   Final report: {len(event['final_report']) if event['final_report'] else 0} chars")
+            
+            if not events:
+                print("[DEBUG] WARNING: No events returned from stream!")
+                # Try invoking directly
+                print("[DEBUG] Trying direct invoke...")
+                try:
+                    result = await loop.run_in_executor(
+                        None,
+                        lambda: research_graph.invoke(
+                            initial_state,
+                            research_thread,
+                        )
+                    )
+                    print(f"[DEBUG] Direct invoke result keys: {list(result.keys())}")
+                    if "final_report" in result:
+                        print(f"[DEBUG] Direct invoke final_report: {len(result['final_report'])} chars")
+                        # Create a final event with the report
+                        events = [{
+                            **initial_state,
+                            "final_report": result["final_report"],
+                            "sections": result.get("sections", []),
+                            "introduction": result.get("introduction", ""),
+                            "content": result.get("content", ""),
+                            "conclusion": result.get("conclusion", ""),
+                        }]
+                except Exception as e:
+                    print(f"[DEBUG] Direct invoke error: {e}")
+                    import traceback
+                    traceback.print_exc()
+            
+            # Yield events one by one with small delay to ensure streaming
+            # Only skip the FIRST event (initial state), not all events with analysts
+            for i, event in enumerate(events):
+                print(f"[DEBUG] Yielding event {i+1}/{len(events)}")
+                # Skip only the first event (initial state)
+                if i == 0:
+                    print(f"[DEBUG] Skipping initial state event")
+                    continue
 
+                # Check for final_report first (highest priority)
                 payload = None
-                if "sections" in event and event["sections"]:
-                    # Each new section from parallel interviews
-                    section_text = event["sections"][-1]
-                    payload = {"type": "section", "payload": section_text}
-                    session["sections"] = event["sections"]
-                elif "content" in event and event["content"]:
-                    payload = {"type": "report", "payload": event["content"]}
-                elif "introduction" in event and event["introduction"]:
-                    payload = {"type": "introduction", "payload": event["introduction"]}
-                elif "conclusion" in event and event["conclusion"]:
-                    payload = {"type": "conclusion", "payload": event["conclusion"]}
-                elif "final_report" in event and event["final_report"]:
+                if "final_report" in event and event["final_report"]:
                     payload = {"type": "final_report", "payload": event["final_report"]}
                     session["final_report"] = event["final_report"]
                     session["status"] = "complete"
+                    print(f"[DEBUG] Yielding final_report: {len(event['final_report'])} chars")
+                # Then check for NEW sections (more than previously seen)
+                elif "sections" in event and event["sections"]:
+                    prev_count = len(session.get("sections", []))
+                    curr_count = len(event["sections"])
+                    if curr_count > prev_count:
+                        # Yield the newest section
+                        section_text = event["sections"][-1]
+                        payload = {"type": "section", "payload": section_text}
+                        session["sections"] = event["sections"]
+                        print(f"[DEBUG] Yielding NEW section: {len(section_text)} chars (total: {curr_count})")
+                elif "content" in event and event["content"]:
+                    payload = {"type": "report", "payload": event["content"]}
+                    print(f"[DEBUG] Yielding report: {len(event['content'])} chars")
+                elif "introduction" in event and event["introduction"]:
+                    payload = {"type": "introduction", "payload": event["introduction"]}
+                    print(f"[DEBUG] Yielding introduction: {len(event['introduction'])} chars")
+                elif "conclusion" in event and event["conclusion"]:
+                    payload = {"type": "conclusion", "payload": event["conclusion"]}
+                    print(f"[DEBUG] Yielding conclusion: {len(event['conclusion'])} chars")
 
                 if payload:
+                    print(f"[DEBUG] Sending payload type: {payload['type']}")
                     yield f"data: {json.dumps(payload)}\n\n"
+                    # Force flush by yielding control
+                    await asyncio.sleep(0.01)
             
+            print("[DEBUG] Sending done event")
             yield f"data: {json.dumps({'type': 'done', 'payload': ''})}\n\n"
+            await asyncio.sleep(0.01)
             
         except Exception as e:
             import traceback
             tb = traceback.format_exc()
             error_detail = f"{type(e).__name__}: {str(e)}"
+            print(f"[DEBUG] ERROR in event_generator: {error_detail}")
+            print(f"[DEBUG] Traceback: {tb}")
             yield f"data: {json.dumps({'type': 'error', 'payload': error_detail})}\n\n"
     
     return StreamingResponse(
@@ -272,6 +362,7 @@ async def stream_research(thread_id: str):
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
             "X-Accel-Buffering": "no",
+            "Content-Type": "text/event-stream",
         },
     )
 
