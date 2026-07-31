@@ -108,6 +108,10 @@ body {
   0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
   40% { transform: scale(1); opacity: 1; }
 }
+@keyframes think-blink {
+  0%, 40%, 80% { opacity: 1; }
+  20%, 60%, 100% { opacity: 0.3; }
+}
 .animate-fadeIn {
   animation: fadeIn 0.4s ease-out forwards;
 }
@@ -119,3 +123,6 @@ body {
 }
 .typing-dot:nth-child(2) { animation-delay: 0.2s; }
 .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+.animate-think-blink {
+  animation: think-blink 1s ease-in-out infinite;
+}

@@ -4,14 +4,14 @@
 
 | Field | Value |
 |-------|-------|
-| **Test Date** | 2026-07-29 11:52:18 |
+| **Test Date** | 2026-07-31 19:20:25 |
 | **Topic** | Trending Topics in AI |
 | **Human Feedback** | Have one persona from Google R&D Team |
 | **Max Analysts** | 3 |
 | **Pipeline Analysts** | 1 |
 | **LLM Provider** | Ollama |
 | **LLM Model** | llama3.2:3b |
-| **Overall Status** | FAILED |
+| **Overall Status** | PASSED |
 
 ---
 
@@ -22,7 +22,7 @@
 | Field | Detail |
 |-------|--------|
 | **Status** | ✅ PASS |
-| **Time** | 2026-07-29T11:52:10.416994 |
+| **Time** | 2026-07-31T19:15:39.352270 |
 | **Details** | All 3 graphs built successfully |
 
 ---
@@ -30,13 +30,9 @@
 
 | Field | Detail |
 |-------|--------|
-| **Status** | ❌ FAIL |
-| **Time** | 2026-07-29T11:52:14.175842 |
-| **Details** | Failed during initial analyst generation |
-
-**Error:** ```
-[WinError 10061] No connection could be made because the target machine actively refused it
-```
+| **Status** | ✅ PASS |
+| **Time** | 2026-07-31T19:15:52.247306 |
+| **Details** | Generated 3 analysts. Paused at: ('human_feedback',) |
 
 ---
 ### Step 3: Human Feedback Input
@@ -44,7 +40,7 @@
 | Field | Detail |
 |-------|--------|
 | **Status** | ✅ PASS |
-| **Time** | 2026-07-29T11:52:14.178174 |
+| **Time** | 2026-07-31T19:15:52.248948 |
 | **Details** | Feedback provided: 'Have one persona from Google R&D Team' |
 
 ---
@@ -52,35 +48,30 @@
 
 | Field | Detail |
 |-------|--------|
-| **Status** | ❌ FAIL |
-| **Time** | 2026-07-29T11:52:16.209543 |
-| **Details** | Failed during analyst regeneration |
+| **Status** | ✅ PASS |
+| **Time** | 2026-07-31T19:16:02.671513 |
+| **Details** | Regenerated 3 analysts after feedback |
 
-**Error:** ```
-[WinError 10061] No connection could be made because the target machine actively refused it
-```
-
+- **Dr. Rachel Kim** | Google R&D Team | AI Researcher
+- **Dr. Liam Chen** | Microsoft Research Team | AI Engineer
+- **Dr. Sofia Patel** | IBM Research Team | AI Scientist
 ---
 ### Step 5: Single Interview Test
 
 | Field | Detail |
 |-------|--------|
-| **Status** | ⏭️ SKIPPED |
-| **Time** | 2026-07-29T11:52:16.209543 |
-| **Details** | No analysts available |
+| **Status** | ✅ PASS |
+| **Time** | 2026-07-31T19:18:22.578973 |
+| **Details** | Interview section generated (3632 chars) |
 
 ---
 ### Step 6: Full Research Pipeline
 
 | Field | Detail |
 |-------|--------|
-| **Status** | ❌ FAIL |
-| **Time** | 2026-07-29T11:52:18.258121 |
-| **Details** | Failed during full research pipeline |
-
-**Error:** ```
-[WinError 10061] No connection could be made because the target machine actively refused it
-```
+| **Status** | ✅ PASS |
+| **Time** | 2026-07-31T19:20:25.940026 |
+| **Details** | Final report generated (3482 chars) |
 
 ---
 
@@ -91,44 +82,69 @@
   {
     "step": "Graph Initialization",
     "status": "PASS",
-    "timestamp": "2026-07-29T11:52:10.416994",
+    "timestamp": "2026-07-31T19:15:39.352270",
     "details": "All 3 graphs built successfully",
     "error": null
   },
   {
     "step": "Analyst Generation (Initial)",
-    "status": "FAIL",
-    "timestamp": "2026-07-29T11:52:14.175842",
-    "details": "Failed during initial analyst generation",
-    "error": "[WinError 10061] No connection could be made because the target machine actively refused it"
+    "status": "PASS",
+    "timestamp": "2026-07-31T19:15:52.247306",
+    "details": "Generated 3 analysts. Paused at: ('human_feedback',)",
+    "error": null
   },
   {
     "step": "Human Feedback Input",
     "status": "PASS",
-    "timestamp": "2026-07-29T11:52:14.178174",
+    "timestamp": "2026-07-31T19:15:52.248948",
     "details": "Feedback provided: 'Have one persona from Google R&D Team'",
     "error": null
   },
   {
     "step": "Analyst Regeneration with Feedback",
-    "status": "FAIL",
-    "timestamp": "2026-07-29T11:52:16.209543",
-    "details": "Failed during analyst regeneration",
-    "error": "[WinError 10061] No connection could be made because the target machine actively refused it"
+    "status": "PASS",
+    "timestamp": "2026-07-31T19:16:02.671513",
+    "details": "Regenerated 3 analysts after feedback",
+    "error": {
+      "approved_analysts": [
+        {
+          "name": "Dr. Rachel Kim",
+          "affiliation": "Google R&D Team",
+          "role": "AI Researcher",
+          "description": "Expert in Natural Language Processing (NLP) and its applications in AI. Dr. Kim has published numerous papers on NLP and has developed several state-of-the-art models for text analysis."
+        },
+        {
+          "name": "Dr. Liam Chen",
+          "affiliation": "Microsoft Research Team",
+          "role": "AI Engineer",
+          "description": "Specializes in computer vision and machine learning algorithms. Dr. Chen has worked on several high-profile projects, including the development of deep learning models for image recognition."
+        },
+        {
+          "name": "Dr. Sofia Patel",
+          "affiliation": "IBM Research Team",
+          "role": "AI Scientist",
+          "description": "Expert in reinforcement learning and its applications in robotics and autonomous systems. Dr. Patel has developed several novel algorithms for complex decision-making problems."
+        }
+      ]
+    }
   },
   {
     "step": "Single Interview Test",
-    "status": "SKIPPED",
-    "timestamp": "2026-07-29T11:52:16.209543",
-    "details": "No analysts available",
-    "error": null
+    "status": "PASS",
+    "timestamp": "2026-07-31T19:18:22.578973",
+    "details": "Interview section generated (3632 chars)",
+    "error": {
+      "section_preview": "## The Future of Natural Language Processing (NLP) in 2024\n### Expert Insights and Trends\n\nAs an expert in Natural Language Processing (NLP), I have analyzed various sources to provide insights into the latest trends and advancements in NLP for 2024. With significant investments in AI research, NLP "
+    }
   },
   {
     "step": "Full Research Pipeline",
-    "status": "FAIL",
-    "timestamp": "2026-07-29T11:52:18.258121",
-    "details": "Failed during full research pipeline",
-    "error": "[WinError 10061] No connection could be made because the target machine actively refused it"
+    "status": "PASS",
+    "timestamp": "2026-07-31T19:20:25.940026",
+    "details": "Final report generated (3482 chars)",
+    "error": {
+      "report_preview": "# # Unconventional Intelligence: Exploring Surprising AI Applications\n\n## Introduction\n\nArtificial Intelligence is transforming industries in unexpected ways, from optimizing farm feed and water conditions to creating personalized experiences in retail. This report delves into 12 surprising AI applications that have made a significant impact between 2023-2025. From the use of AI in beekeeping to developing new fragrances, these innovative applications showcase the vast potential of AI in reshapi"
+    }
   }
 ]
 ```
@@ -150,16 +166,81 @@
 ## Output Summary
 
 
-**No final report was generated.**
+### Approved Analysts
+
+| # | Name | Affiliation | Role | Description |
+|---|------|-------------|------|-------------|
+| 1 | Dr. Rachel Kim | Google R&D Team | AI Researcher | Expert in Natural Language Processing (NLP) and its applications in AI. Dr. Kim has published numerous papers on NLP and has developed several state-of-the-art models for text analysis. |
+| 2 | Dr. Liam Chen | Microsoft Research Team | AI Engineer | Specializes in computer vision and machine learning algorithms. Dr. Chen has worked on several high-profile projects, including the development of deep learning models for image recognition. |
+| 3 | Dr. Sofia Patel | IBM Research Team | AI Scientist | Expert in reinforcement learning and its applications in robotics and autonomous systems. Dr. Patel has developed several novel algorithms for complex decision-making problems. |
+
+### Interview Section (Preview)
+
+Character count: 3632
+
+```markdown
+## The Future of Natural Language Processing (NLP) in 2024
+### Expert Insights and Trends
+
+As an expert in Natural Language Processing (NLP), I have analyzed various sources to provide insights into the latest trends and advancements in NLP for 2024. With significant investments in AI research, NLP is becoming increasingly important across industries.
+
+#### Summary
+
+The landscape of NLP in 2024 is marked by rapid advancements in transformer-based models, conversational AI, multimodal learning, and few-shot learning. However, these innovations also come with challenges, particularly in ethics, energy efficiency, and fairness. The future of NLP looks promising as it moves toward more inclusive, efficient, and human-like language understanding.
+
+#### Key Trends
+
+1. **Transformer Models**: Tra...
+```
+
+### Final Report
+
+Character count: 3482
+
+```markdown
+# # Unconventional Intelligence: Exploring Surprising AI Applications
+
+## Introduction
+
+Artificial Intelligence is transforming industries in unexpected ways, from optimizing farm feed and water conditions to creating personalized experiences in retail. This report delves into 12 surprising AI applications that have made a significant impact between 2023-2025. From the use of AI in beekeeping to developing new fragrances, these innovative applications showcase the vast potential of AI in reshaping various sectors. By examining real-world outcomes and leveraging expert insights, this report provides an in-depth look at the unconventional intelligence revolutionizing industries worldwide.
+
+---
+
+
+
+Artificial Intelligence (AI) is increasingly being used in unexpected ways across various industries, transforming the way we live and work. From optimizing farm feed and water conditions to developing new fragrances and creating personalized experiences in retail, AI is revolutionizing the way businesses operate.
+
+One of the most surprising applications of AI is in business and industry. Farm operators are using AI to optimize feed and water conditions, leading to healthier shrimp and fewer die-offs, resulting in higher yields and income [1]. Additionally, a fragrance company used AI to analyze different chemical formulas and develop a new way of preparing fragrances, resulting in unique and high-quality products.
+
+In the retail and e-commerce sector, AI applications include personalized experiences, predictive maintenance, and advanced analytics. This enables businesses to provide customers with tailored recommendations, improve operational efficiency, and make data-driven decisions [2]. The use of AI in the travel industry also includes optimizing routes and improving customer service, further expanding its reach into various sectors.
+
+In healthcare, AI is being used to optimize operations, predict patient outcomes, and develop new treatments. This has significant implications for the future of healthcare, enabling doctors and researchers to make more informed decisions and improve patient care [3].
+
+The elderly companion system is another example of AI in action, using machine learning algorithms to learn from historical data about customer choices and preferences, creating unique fragrances based on this information.
+
+AI is also being used in various other industries, including manufacturing, finance, and education. Its applications are vast and varied, and it continues to transform the way businesses operate.
+
+
+---
+
+## Conclusion
+
+As we conclude this report on Trending Topics in AI, it is clear that Artificial Intelligence is no longer confined to traditional applications. From optimizing farm feed and water conditions to developing personalized experiences in retail, AI has proven its versatility and potential for innovation. The examples presented in this report demonstrate the vast range of unconventional AI applications, from healthcare to travel, each with real-world outcomes and benefits. As we move forward into 2025 and beyond, it is essential to continue exploring and embracing these emerging trends to unlock new possibilities and reshape industries.
+
+## Sources
+[1] https://intersog.co.il/blog/unconventional-intelligence-12-surprising-ai-applications-reshaping-2025/
+[2] https://www.clickworker.com/customer-blog/artificial-intelligence-unusual-use-cases/
+[3] https://www.leewayhertz.com/ai-use-cases-and-applications/
+```
 
 
 ## Key Observations
 
 - **Graph Initialization:** ✅ Passed
-- **Analyst Generation:** ❌ Failed
+- **Analyst Generation:** ✅ Passed
 - **Human Feedback Integration:** ✅ Passed
-- **Interview Execution:** ❌ Failed/Not Run
-- **Research Pipeline:** ❌ Failed/Not Run
+- **Interview Execution:** ✅ Passed
+- **Research Pipeline:** ✅ Passed
 
 ## Configuration Details
 

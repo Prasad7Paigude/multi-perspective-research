@@ -11,9 +11,9 @@ analyst_instructions = """You are tasked with creating a set of AI analyst perso
     
 3. Determine the most interesting themes based upon documents and / or feedback above.
                     
-4. Pick the top {max_analysts} themes.
-
-5. Assign one analyst to each theme."""
+4. You must pick exactly {max_analysts} distinct themes.
+5. Create exactly {max_analysts} analysts, assigning one analyst to each theme.
+"""
 
 question_instructions = """You are an analyst tasked with interviewing an expert to learn about a specific topic. 
 

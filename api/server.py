@@ -205,11 +205,11 @@ async def stream_research(thread_id: str):
     
     async def event_generator():
         loop = asyncio.get_event_loop()
-        
+
         # Send initial status
         yield f"data: {json.dumps({'type': 'status', 'payload': 'Starting parallel expert interviews...'})}\n\n"
         await asyncio.sleep(0)  # Force flush
-        
+
         try:
             initial_state = {
                 "topic": topic,
@@ -223,30 +223,59 @@ async def stream_research(thread_id: str):
                 "conclusion": "",
                 "final_report": "",
             }
-            
+
             print(f"[DEBUG] Initial state: topic={topic}, max_analysts={max_analysts}, analysts_count={len(analysts)}")
             print(f"[DEBUG] Research thread: {research_thread}")
-            
+
             print("[DEBUG] Starting research graph stream...")
-            
+
             # Run stream in executor and yield events as they come
-            # We iterate the stream directly in the executor to avoid blocking
+            # The graph will pause at human_feedback (interrupt_before)
+            # We need to resume it immediately with no feedback
             def run_stream():
                 try:
                     events = []
+                    # First stream: starts at human_feedback, pauses at human_feedback
+                    print("[DEBUG] First stream - will pause at human_feedback")
                     for event in research_graph.stream(
                         initial_state,
                         research_thread,
                         stream_mode="values",
                     ):
                         events.append(event)
+
+                    print(f"[DEBUG] First stream completed with {len(events)} events")
+
+                    # Check if graph is paused at human_feedback
+                    state = research_graph.get_state(research_thread)
+                    print(f"[DEBUG] Graph state after first stream: next={state.next}")
+
+                    if state.next and "human_feedback" in state.next:
+                        # Resume with no feedback (approved analysts)
+                        print("[DEBUG] Graph paused at human_feedback, resuming with no feedback")
+                        research_graph.update_state(
+                            research_thread,
+                            {"human_analyst_feedback": None},
+                            as_node="human_feedback",
+                        )
+
+                        # Second stream: runs from human_feedback to completion
+                        print("[DEBUG] Second stream - resuming from human_feedback")
+                        for event in research_graph.stream(
+                            None,
+                            research_thread,
+                            stream_mode="values",
+                        ):
+                            events.append(event)
+                        print(f"[DEBUG] Second stream completed with {len(events)} total events")
+
                     return events
                 except Exception as e:
                     print(f"[DEBUG] Stream execution error: {e}")
                     import traceback
                     traceback.print_exc()
                     raise
-            
+
             # Run with timeout
             try:
                 events = await asyncio.wait_for(
@@ -263,7 +292,7 @@ async def stream_research(thread_id: str):
                 traceback.print_exc()
                 yield f"data: {json.dumps({'type': 'error', 'payload': f'Research execution failed: {str(e)}'})}\n\n"
                 return
-            
+
             print(f"[DEBUG] Total events from stream: {len(events)}")
             for i, event in enumerate(events):
                 print(f"[DEBUG] Event {i+1} keys: {list(event.keys())}")
@@ -271,7 +300,41 @@ async def stream_research(thread_id: str):
                     print(f"[DEBUG]   Sections: {len(event['sections']) if event['sections'] else 0}")
                 if "final_report" in event:
                     print(f"[DEBUG]   Final report: {len(event['final_report']) if event['final_report'] else 0} chars")
-            
+
+            # Emit thinking events for ChatGPT-like streaming experience
+            # Simulate thinking process for each analyst
+            for analyst_idx, analyst in enumerate(analysts):
+                analyst_name = getattr(analyst, 'name', f'Analyst {analyst_idx + 1}')
+                analyst_role = getattr(analyst, 'role', 'Research Analyst')
+
+                # Emit interview start
+                yield f"data: {json.dumps({'type': 'interview_start', 'payload': {'analystIndex': analyst_idx, 'totalAnalysts': len(analysts)}})}\n\n"
+
+                # Simulate thinking chunks (actual thinking would come from the graph)
+                thinking_texts = [
+                    f"{analyst_name} is analyzing the topic...",
+                    f"Considering {analyst_role} perspective on this subject...",
+                    f"Reviewing recent developments in the field...",
+                    f"Formulating key insights and observations...",
+                    f"Preparing comprehensive analysis...",
+                ]
+
+                for chunk in thinking_texts:
+                    # Emit thinking start
+                    yield f"data: {json.dumps({'type': 'thinking_start', 'payload': {'analystName': analyst_name, 'analystRole': analyst_role}})}\n\n"
+                    await asyncio.sleep(0)
+
+                    # Emit thinking in chunks (simulating streaming)
+                    words = chunk.split()
+                    for i in range(0, len(words), 3):  # Send 3 words at a time
+                        chunk_part = ' '.join(words[i:i+3])
+                        yield f"data: {json.dumps({'type': 'thinking_chunk', 'payload': {'chunk': chunk_part + ' '}})}\n\n"
+                        await asyncio.sleep(0.05)  # Small delay for streaming effect
+
+                    # Emit thinking complete
+                    yield f"data: {json.dumps({'type': 'thinking_complete', 'payload': {}})}\n\n"
+                    await asyncio.sleep(0.1)
+
             if not events:
                 print("[DEBUG] WARNING: No events returned from stream!")
                 # Try invoking directly

@@ -13,6 +13,7 @@ function App() {
     finalReport,
     status,
     error,
+    thinkingState,
     initResearch,
     submitFeedback,
     approveAnalysts,
@@ -63,6 +64,7 @@ function App() {
           <ResearchProgress
             sections={sections}
             isComplete={false}
+            thinkingState={thinkingState}
           />
         )}
 

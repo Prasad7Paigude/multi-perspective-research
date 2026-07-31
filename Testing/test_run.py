@@ -15,6 +15,9 @@ import os
 from datetime import datetime
 from langchain_core.messages import HumanMessage
 
+# Add parent directory to path so we can import from src, config, utils
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from src.graph import (
     build_analyst_graph,
     build_interview_graph,

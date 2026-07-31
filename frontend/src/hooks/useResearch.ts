@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import type { SSEEvent, SessionState } from '../types';
+import type { SSEEvent, SessionState, ThinkingState } from '../types';
 
 const API_BASE = '/api';
 
@@ -16,6 +16,7 @@ function useResearch() {
     error: null,
     interviewProgress: { current: 0, total: 0 },
   });
+  const [thinkingState, setThinkingState] = useState<ThinkingState | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
 
   const initResearch = useCallback(async (topic: string, maxAnalysts: number, maxTurns: number) => {
@@ -127,6 +128,44 @@ function useResearch() {
               interviewProgress: data.payload,
             }));
             break;
+          case 'thinking_start':
+            // Start a new thinking session
+            setThinkingState({
+              analystName: data.payload.analystName,
+              analystRole: data.payload.analystRole,
+              content: '',
+              isComplete: false,
+            });
+            break;
+          case 'thinking_chunk':
+            // Append thinking content in real-time
+            setThinkingState(prev => {
+              if (prev) {
+                return {
+                  ...prev,
+                  content: prev.content + data.payload.chunk,
+                  isComplete: false,
+                };
+              }
+              return null;
+            });
+            break;
+          case 'thinking_complete':
+            // Mark current thinking as complete
+            setThinkingState(prev => {
+              if (prev) {
+                return {
+                  ...prev,
+                  isComplete: true,
+                };
+              }
+              return null;
+            });
+            break;
+          case 'interview_start':
+            // Clear thinking state when a new interview starts
+            setThinkingState(null);
+            break;
           case 'section':
             setState(prev => ({
               ...prev,
@@ -207,10 +246,12 @@ function useResearch() {
       error: null,
       interviewProgress: { current: 0, total: 0 },
     });
+    setThinkingState(null);
   }, []);
 
   return {
     ...state,
+    thinkingState,
     initResearch,
     submitFeedback,
     approveAnalysts,

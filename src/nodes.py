@@ -193,22 +193,20 @@ def write_section(state: InterviewState):
 # ============================================================
 
 def initiate_all_interviews(state: ResearchGraphState):
-    human_analyst_feedback = state.get('human_analyst_feedback')
-    if human_analyst_feedback:
-        return "create_analysts"
-    else:
-        topic = state["topic"]
-        max_num_turns = state.get("max_num_turns", 2)
-        return [Send("conduct_interview", {
-            "analyst": analyst,
-            "max_num_turns": max_num_turns,
-            "messages": [HumanMessage(
-                content=f"So you said you were writing an article on {topic}?"
-            )],
-            "context": [],
-            "interview": "",
-            "sections": [],
-        }) for analyst in state["analysts"]]
+    # Always proceed to conduct interviews with the approved analysts
+    # The analysts are already in the state from the initial_state
+    topic = state["topic"]
+    max_num_turns = state.get("max_num_turns", 2)
+    return [Send("conduct_interview", {
+        "analyst": analyst,
+        "max_num_turns": max_num_turns,
+        "messages": [HumanMessage(
+            content=f"So you said you were writing an article on {topic}?"
+        )],
+        "context": [],
+        "interview": "",
+        "sections": [],
+    }) for analyst in state["analysts"]]
 
 
 def write_report(state: ResearchGraphState):

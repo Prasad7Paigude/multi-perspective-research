@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react';
-import { Users, MessageCircle, FileText, CheckCircle2, Loader2 } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Users, MessageCircle, FileText, CheckCircle2, Loader2, Brain } from 'lucide-react';
+import type { ThinkingState } from '../types';
 
 interface ResearchProgressProps {
   sections: string[];
   isComplete: boolean;
+  thinkingState?: ThinkingState | null;
 }
 
 const steps = [
@@ -12,8 +14,30 @@ const steps = [
   { id: 'report', label: 'Report Synthesis', icon: FileText },
 ];
 
-function ResearchProgress({ sections, isComplete }: ResearchProgressProps) {
+function ResearchProgress({ sections, isComplete, thinkingState }: ResearchProgressProps) {
   const [currentStep, setCurrentStep] = useState(0);
+  const [displayedContent, setDisplayedContent] = useState('');
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  // Animate thinking content for ChatGPT-like streaming effect
+  useEffect(() => {
+    if (thinkingState && thinkingState.content && !thinkingState.isComplete) {
+      // Scroll to bottom when new content arrives
+      const timer = setTimeout(() => {
+        contentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [thinkingState?.content]);
+
+  // Update displayed content when thinking state changes
+  useEffect(() => {
+    if (thinkingState?.content) {
+      setDisplayedContent(thinkingState.content);
+    } else {
+      setDisplayedContent('');
+    }
+  }, [thinkingState?.content]);
 
   useEffect(() => {
     if (sections.length > 0) {
@@ -81,6 +105,37 @@ function ResearchProgress({ sections, isComplete }: ResearchProgressProps) {
           ))}
         </div>
       </div>
+
+      {/* Thinking Display - ChatGPT-like streaming */}
+      {thinkingState && (
+        <div className="bg-bg-secondary rounded-xl border border-accent/30 p-5 mb-6 animate-fadeIn">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0">
+              <Brain className="w-4 h-4 text-accent" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-xs font-medium text-accent">
+                  {thinkingState.analystName}
+                </span>
+                <span className="text-xs text-text-tertiary">
+                  {thinkingState.analystRole}
+                </span>
+              </div>
+              <div className="text-sm text-text-primary leading-relaxed">
+                <span ref={contentRef}>{displayedContent}</span>
+                {!thinkingState.isComplete && (
+                  <span className="inline-flex gap-0.5 ml-1">
+                    <span className="w-1 h-4 bg-accent rounded-sm animate-think-blink" />
+                    <span className="w-1 h-4 bg-accent rounded-sm animate-think-blink" style={{ animationDelay: '0.2s' }} />
+                    <span className="w-1 h-4 bg-accent rounded-sm animate-think-blink" style={{ animationDelay: '0.4s' }} />
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Live Log */}
       <div className="bg-bg-secondary rounded-xl border border-border-primary p-5">
