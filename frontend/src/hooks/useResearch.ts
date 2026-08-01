@@ -162,10 +162,16 @@ function useResearch() {
               return null;
             });
             break;
-          case 'interview_start':
-            // Clear thinking state when a new interview starts
-            setThinkingState(null);
-            break;
+           case 'interview_start':
+             // Update thinking state with new analyst info when interview starts
+             // Don't clear it - we want thinking to show throughout the interview
+             setThinkingState({
+               analystName: data.payload.analystName || 'Analyst',
+               analystRole: data.payload.analystRole || 'Research Analyst',
+               content: '',
+               isComplete: false,
+             });
+             break;
           case 'section':
             setState(prev => ({
               ...prev,

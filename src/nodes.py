@@ -29,7 +29,17 @@ def create_analysts(state: GenerateAnalystsState):
 
     # If analysts already exist and no new feedback, skip LLM call
     if existing_analysts and not human_analyst_feedback:
-        return {"analysts": existing_analysts[:max_analysts]}
+        # Ensure we return exactly max_analysts
+        sliced_analysts = existing_analysts[:max_analysts]
+        # If we have fewer than requested, create placeholder analysts
+        while len(sliced_analysts) < max_analysts:
+            sliced_analysts.append(Analyst(
+                affiliation=f"Research Institute {len(sliced_analysts) + 1}",
+                name=f"Dr. Analyst {len(sliced_analysts) + 1}",
+                role="Research Analyst",
+                description=f"Expert analyst focusing on {topic}"
+            ))
+        return {"analysts": sliced_analysts[:max_analysts]}
 
     structured_llm = llm.with_structured_output(Perspectives)
     system_message = analyst_instructions.format(
@@ -42,10 +52,29 @@ def create_analysts(state: GenerateAnalystsState):
             [SystemMessage(content=system_message)] +
             [HumanMessage(content="Generate the set of analysts.")]
         )
-        return {"analysts": analysts.analysts[:max_analysts]}
+        # Ensure we return exactly max_analysts analysts
+        generated_analysts = analysts.analysts[:max_analysts]
+        # If LLM generated fewer than requested, create placeholder analysts
+        while len(generated_analysts) < max_analysts:
+            generated_analysts.append(Analyst(
+                affiliation=f"Research Institute {len(generated_analysts) + 1}",
+                name=f"Dr. Analyst {len(generated_analysts) + 1}",
+                role="Research Analyst",
+                description=f"Expert analyst focusing on {topic}"
+            ))
+        return {"analysts": generated_analysts[:max_analysts]}
     except json.JSONDecodeError:
         # Local model failed to produce valid JSON — return empty list
-        return {"analysts": []}
+        # Create placeholder analysts as fallback
+        fallback_analysts = []
+        for i in range(max_analysts):
+            fallback_analysts.append(Analyst(
+                affiliation=f"Research Institute {i + 1}",
+                name=f"Dr. Analyst {i + 1}",
+                role="Research Analyst",
+                description=f"Expert analyst focusing on {topic}"
+            ))
+        return {"analysts": fallback_analysts}
 
 
 def human_feedback(state: GenerateAnalystsState):

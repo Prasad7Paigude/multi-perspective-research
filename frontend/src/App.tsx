@@ -68,15 +68,16 @@ function App() {
           />
         )}
 
-        {/* Status: complete → show report */}
-        {status === 'complete' && finalReport && (
-          <FinalReport
-            report={finalReport}
-            sections={sections}
-            topic={topic}
-            onReset={reset}
-          />
-        )}
+         {/* Status: complete → show report */}
+         {status === 'complete' && finalReport && (
+           <FinalReport
+             report={finalReport}
+             sections={sections}
+             topic={topic}
+             onReset={reset}
+             analysts={analysts}
+           />
+         )}
 
         {/* Status: error */}
         {status === 'error' && (

@@ -8,9 +8,10 @@ interface FinalReportProps {
   sections: string[];
   topic: string;
   onReset: () => void;
+  analysts: any[];
 }
 
-function FinalReport({ report, sections, topic, onReset }: FinalReportProps) {
+function FinalReport({ report, sections, topic, onReset, analysts }: FinalReportProps) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -90,13 +91,13 @@ function FinalReport({ report, sections, topic, onReset }: FinalReportProps) {
         </button>
       </div>
 
-      {/* Summary Stats */}
-      <div className="flex items-center gap-4 mb-6">
-        <div className="px-3 py-1.5 rounded-lg bg-bg-tertiary">
-          <span className="text-xs text-text-secondary">
-            <span className="font-medium text-text-primary">{sections.length}</span> analyst perspectives
-          </span>
-        </div>
+       {/* Summary Stats */}
+       <div className="flex items-center gap-4 mb-6">
+         <div className="px-3 py-1.5 rounded-lg bg-bg-tertiary">
+           <span className="text-xs text-text-secondary">
+             <span className="font-medium text-text-primary">{analysts?.length || sections.length}</span> analyst perspectives
+           </span>
+         </div>
         <div className="px-3 py-1.5 rounded-lg bg-bg-tertiary">
           <span className="text-xs text-text-secondary">
             <span className="font-medium text-text-primary">{report.split(/\s+/).length}</span> words
