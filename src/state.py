@@ -45,8 +45,13 @@ class InterviewState(MessagesState):
     max_num_turns: Annotated[int, lambda x, y: y]  # use latest value
     context: Annotated[list, operator.add]
     analyst: Annotated[Analyst, lambda c, n: n or c]  # keep existing or use new
-    interview: str
+    interview: Annotated[str, lambda c, n: n or c]
     sections: Annotated[list, operator.add]
+    current_turn: Annotated[int, lambda c, n: n or c]
+    total_turns: Annotated[int, lambda c, n: n or c]
+    status: Annotated[str, lambda c, n: n or c]
+    analyst_id: Annotated[str, lambda c, n: n or c]
+    analyst_name: Annotated[str, lambda c, n: n or c]
 
 
 def _reduce_max_turns(current: int, new: int) -> int:
