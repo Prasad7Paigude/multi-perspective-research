@@ -193,6 +193,7 @@ async def stream_research(thread_id: str):
 
     topic = session["topic"]
     max_analysts = session["max_analysts"]
+    max_turns = session["max_turns"]
     analysts = session["analysts"]
 
     # Ensure we have exactly max_analysts analysts
@@ -213,6 +214,58 @@ async def stream_research(thread_id: str):
     async def event_generator():
         loop = asyncio.get_event_loop()
 
+        # Check if this is a reconnect and emit snapshot if progress exists
+        if "analyst_progress" in session:
+            analyst_progress = session["analyst_progress"]
+            sub_step_weights = {
+                "pending": 0,
+                "asking_question": 25,
+                "searching": 50,
+                "generating_answer": 75,
+                "completed": 100
+            }
+            
+            # Calculate aggregated progress for snapshot
+            analyst_percentages = []
+            eta_seconds = None
+            current_analyst_driving_eta = None
+            
+            for analyst_id, progress in analyst_progress.items():
+                completed_turns_for_analyst = progress["current_turn"]
+                sub_step_pct = sub_step_weights.get(progress["status"], 0)
+                analyst_pct = ((completed_turns_for_analyst * 100) + sub_step_pct) / max_turns
+                analyst_percentages.append(analyst_pct)
+                
+                remaining_turns = max_turns - progress["current_turn"]
+                if progress["avg_time_per_turn"] is not None and remaining_turns > 0:
+                    analyst_eta = remaining_turns * progress["avg_time_per_turn"]
+                    if eta_seconds is None or analyst_eta > eta_seconds:
+                        eta_seconds = analyst_eta
+                        current_analyst_driving_eta = progress["analyst_name"]
+            
+            overall_percentage = sum(analyst_percentages) / len(analyst_percentages) if analyst_percentages else 0
+            
+            # Emit snapshot event
+            yield f"data: {json.dumps({'type': 'snapshot', 'payload': {
+                'overall_percentage': round(overall_percentage, 2),
+                'eta_seconds': round(eta_seconds) if eta_seconds is not None else None,
+                'current_analyst': current_analyst_driving_eta,
+                'current_turn': max((p["current_turn"] for p in analyst_progress.values()), default=0),
+                'total_turns': max_turns,
+                'total_analysts': len(analysts),
+                'analysts': [
+                    {
+                        'analyst_id': p["analyst_id"],
+                        'analyst_name': p["analyst_name"],
+                        'current_turn': p["current_turn"],
+                        'status': p["status"],
+                        'sub_step_percentage': sub_step_weights.get(p["status"], 0)
+                    }
+                    for p in analyst_progress.values()
+                ]
+            }})}\n\n"
+            await asyncio.sleep(0.1)
+
         # Send initial status
         yield f"data: {json.dumps({'type': 'status', 'payload': 'Starting parallel expert interviews...'})}\n\n"
         await asyncio.sleep(0)  # Force flush
@@ -221,7 +274,7 @@ async def stream_research(thread_id: str):
             initial_state = {
                 "topic": topic,
                 "max_analysts": max_analysts,
-                "max_num_turns": session.get("max_turns", 2),
+                "max_num_turns": max_turns,
                 "human_analyst_feedback": None,
                 "analysts": analysts,
                 "sections": [],
@@ -240,49 +293,64 @@ async def stream_research(thread_id: str):
             yield f"data: {json.dumps({'type': 'status', 'payload': f'Starting {len(analysts)} parallel expert interviews...'})}\n\n"
             await asyncio.sleep(0.5)
 
-            # Emit interview_start and thinking_start for each analyst at the beginning
-            # This provides immediate feedback while the graph loads
+            # Initialize per-analyst progress tracking
+            analyst_progress = {}
+            sub_step_weights = {
+                "pending": 0,
+                "asking_question": 25,
+                "searching": 50,
+                "generating_answer": 75,
+                "completed": 100
+            }
+            
             for analyst_idx, analyst in enumerate(analysts):
+                analyst_id = f"analyst_{analyst_idx}"
                 analyst_name = getattr(analyst, 'name', f'Analyst {analyst_idx + 1}')
                 analyst_role = getattr(analyst, 'role', 'Research Analyst')
-
+                
+                analyst_progress[analyst_id] = {
+                    "analyst_id": analyst_id,
+                    "analyst_name": analyst_name,
+                    "analyst_role": analyst_role,
+                    "current_turn": 0,
+                    "total_turns": max_turns,
+                    "status": "pending",
+                    "turn_start_time": None,
+                    "turn_times": [],
+                    "avg_time_per_turn": None
+                }
+                
+                # Emit interview_start event
                 yield f"data: {json.dumps({'type': 'interview_start', 'payload': {
-                    'analystIndex'
-                    : analyst_idx,
+                    'analystIndex': analyst_idx,
                     'totalAnalysts': len(analysts),
                     'analystName': analyst_name,
                     'analystRole': analyst_role
                 }})}\n\n"
                 await asyncio.sleep(0.1)
-
-                # Start thinking for this analyst
-                yield f"data: {json.dumps({'type': 'thinking_start', 'payload': {
-                    'analystName': analyst_name,
-                    'analystRole': analyst_role
+                
+                # Emit initial progress_update for this analyst
+                yield f"data: {json.dumps({'type': 'progress_update', 'payload': {
+                    'analyst_id': analyst_id,
+                    'analyst_name': analyst_name,
+                    'current_turn': 0,
+                    'total_turns': max_turns,
+                    'status': 'pending',
+                    'sub_step_percentage': 0,
+                    'timestamp': time.time()
                 }})}\n\n"
-                await asyncio.sleep(0.1)
-
-                # Emit initial thinking chunks for this analyst
-                thinking_texts = [
-                    f"{analyst_name} is analyzing the topic...",
-                    f"Considering {analyst_role} perspective...",
-                    f"Reviewing recent developments...",
-                ]
-
-                for chunk in thinking_texts:
-                    words = chunk.split()
-                    for i in range(0, len(words), 2):
-                        chunk_part = ' '.join(words[i:i+2])
-                        yield f"data: {json.dumps({'type': 'thinking_chunk', 'payload': {'chunk': chunk_part + ' '}})}\n\n"
-                        await asyncio.sleep(0.15)
+                await asyncio.sleep(0.05)
+            
+            # Store progress state in session for reconnect support
+            session["analyst_progress"] = analyst_progress
 
             # Now run the actual research graph
             # Run stream in executor and yield events as they come
             # The graph will pause at human_feedback (interrupt_before)
             # We need to resume it immediately with no feedback
 
-            # Track which analysts have completed thinking
-            thinking_complete_sent = set()
+            # Track which analysts have completed their interviews
+            completed_analysts = set()
 
             def run_stream():
                 try:
@@ -328,43 +396,126 @@ async def stream_research(thread_id: str):
                     traceback.print_exc()
                     raise
 
-            # Run with timeout - emit thinking chunks while waiting for graph
-            thinking_messages = [
-                "Analyzing the topic from multiple perspectives...",
-                "Gathering information and insights...",
-                "Synthesizing findings...",
-                "Preparing comprehensive analysis...",
-                "Compiling results...",
-            ]
-
             # Start graph execution in background
             graph_future = loop.run_in_executor(None, run_stream)
 
-            # Emit thinking chunks while waiting for graph to complete
-            msg_idx = 0
-            graph_done = False
+            # Emit progress events while waiting for graph to complete
+            graph_done = False  # Progress tracking loop
+
+            # Emit initial aggregated progress
+            # Inline the aggregated progress calculation
+            analyst_percentages = []
+            eta_seconds = None
+            current_analyst_driving_eta = None
+            
+            for analyst_id, progress in analyst_progress.items():
+                completed_turns_for_analyst = progress["current_turn"]
+                sub_step_pct = sub_step_weights.get(progress["status"], 0)
+                analyst_pct = ((completed_turns_for_analyst * 100) + sub_step_pct) / max_turns
+                analyst_percentages.append(analyst_pct)
+                
+                remaining_turns = max_turns - progress["current_turn"]
+                if progress["avg_time_per_turn"] is not None and remaining_turns > 0:
+                    analyst_eta = remaining_turns * progress["avg_time_per_turn"]
+                    if eta_seconds is None or analyst_eta > eta_seconds:
+                        eta_seconds = analyst_eta
+                        current_analyst_driving_eta = progress["analyst_name"]
+            
+            overall_percentage = sum(analyst_percentages) / len(analyst_percentages) if analyst_percentages else 0
+            yield f"data: {json.dumps({'type': 'interview_progress', 'payload': {
+                'overall_percentage': round(overall_percentage, 2),
+                'eta_seconds': round(eta_seconds) if eta_seconds is not None else None,
+                'current_analyst': current_analyst_driving_eta,
+                'current_turn': max((p["current_turn"] for p in analyst_progress.values()), default=0),
+                'total_turns': max_turns,
+                'total_analysts': len(analysts)
+            }})}\n\n"
+            await asyncio.sleep(0.1)
+            
+            # Simulate progress updates (replace with actual LangGraph hooks later)
             while not graph_done:
                 # Check if graph is done
                 if graph_future.done():
                     graph_done = True
                     break
-
-                # Emit thinking chunk
-                msg = thinking_messages[msg_idx % len(thinking_messages)]
-                words = msg.split()
-                for i in range(0, len(words), 2):
-                    chunk_part = ' '.join(words[i:i+2])
-                    yield f"data: {json.dumps({'type': 'thinking_chunk', 'payload': {'chunk': chunk_part + ' '}})}\n\n"
-                    await asyncio.sleep(0.2)
-
-                    # Check again if graph is done
-                    if graph_future.done():
-                        graph_done = True
-                        break
-
-                msg_idx += 1
-                if msg_idx >= len(thinking_messages):
-                    msg_idx = 0
+                
+                # Update progress for each analyst
+                for analyst_id, progress in analyst_progress.items():
+                    if progress["current_turn"] < max_turns and progress["status"] != "completed":
+                        # Simulate sub-step progression
+                        if progress["status"] == "pending":
+                            progress["status"] = "asking_question"
+                            progress["turn_start_time"] = time.time()
+                        elif progress["status"] == "asking_question":
+                            progress["status"] = "searching"
+                        elif progress["status"] == "searching":
+                            progress["status"] = "generating_answer"
+                        elif progress["status"] == "generating_answer":
+                            progress["status"] = "completed"
+                            progress["current_turn"] += 1
+                            # Record turn time
+                            if progress["turn_start_time"] is not None:
+                                turn_time = time.time() - progress["turn_start_time"]
+                                progress["turn_times"].append(turn_time)
+                                # Update moving average
+                                if len(progress["turn_times"]) == 1:
+                                    progress["avg_time_per_turn"] = 45.0  # Seed with 45s
+                                else:
+                                    progress["avg_time_per_turn"] = sum(progress["turn_times"]) / len(progress["turn_times"])
+                            progress["turn_start_time"] = None
+                            if progress["current_turn"] < max_turns:
+                                progress["status"] = "asking_question"
+                                progress["turn_start_time"] = time.time()
+                        
+                        # Update session state for reconnect support
+                        session["analyst_progress"] = analyst_progress
+                        
+                        # Emit progress_update for this analyst
+                        yield f"data: {json.dumps({'type': 'progress_update', 'payload': {
+                            'analyst_id': analyst_id,
+                            'analyst_name': progress["analyst_name"],
+                            'current_turn': progress["current_turn"],
+                            'total_turns': max_turns,
+                            'status': progress["status"],
+                            'sub_step_percentage': sub_step_weights.get(progress["status"], 0),
+                            'timestamp': time.time()
+                        }})}\n\n"
+                        
+                        # Emit aggregated progress (inline)
+                        analyst_percentages = []
+                        eta_seconds = None
+                        current_analyst_driving_eta = None
+                        
+                        for a_id, p in analyst_progress.items():
+                            completed_turns_for_analyst = p["current_turn"]
+                            sub_step_pct = sub_step_weights.get(p["status"], 0)
+                            analyst_pct = ((completed_turns_for_analyst * 100) + sub_step_pct) / max_turns
+                            analyst_percentages.append(analyst_pct)
+                            
+                            remaining_turns = max_turns - p["current_turn"]
+                            if p["avg_time_per_turn"] is not None and remaining_turns > 0:
+                                analyst_eta = remaining_turns * p["avg_time_per_turn"]
+                                if eta_seconds is None or analyst_eta > eta_seconds:
+                                    eta_seconds = analyst_eta
+                                    current_analyst_driving_eta = p["analyst_name"]
+                        
+                        overall_percentage = sum(analyst_percentages) / len(analyst_percentages) if analyst_percentages else 0
+                        yield f"data: {json.dumps({'type': 'interview_progress', 'payload': {
+                            'overall_percentage': round(overall_percentage, 2),
+                            'eta_seconds': round(eta_seconds) if eta_seconds is not None else None,
+                            'current_analyst': current_analyst_driving_eta,
+                            'current_turn': max((p["current_turn"] for p in analyst_progress.values()), default=0),
+                            'total_turns': max_turns,
+                            'total_analysts': len(analysts)
+                        }})}\n\n"
+                        await asyncio.sleep(0.1)
+                
+                await asyncio.sleep(0.5)
+                
+                # Check again if graph is done
+                if graph_future.done():
+                    graph_done = True
+                    break
 
             # Get the result
             try:
@@ -462,11 +613,6 @@ async def stream_research(thread_id: str):
                             sections_yielded = j + 1
                             print(f"[DEBUG] Yielding section {j+1}/{len(sections_list)}: {len(section_text)} chars")
                             yield f"data: {json.dumps(payload)}\n\n"
-                            # Emit thinking complete for this analyst
-                            if j < len(analysts):
-                                analyst = analysts[j]
-                                analyst_name = getattr(analyst, 'name', f'Analyst {j + 1}')
-                                yield f"data: {json.dumps({'type': 'thinking_complete', 'payload': {}})}\n\n"
                             await asyncio.sleep(0.01)
                         continue
                 elif "content" in event and event["content"]:

@@ -1,50 +1,65 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Users, MessageCircle, FileText, CheckCircle2, Loader2, Brain } from 'lucide-react';
-import type { ThinkingState } from '../types';
 
 interface ResearchProgressProps {
   sections: string[];
   isComplete: boolean;
-  thinkingState?: ThinkingState | null;
+  interviewProgress?: {
+    current: number;
+    total: number;
+    percentage: number;
+    etaSeconds: number | null;
+    currentAnalyst: string | null;
+    currentTurn: number;
+    totalAnalysts: number;
+    isStale: boolean;
+  };
 }
 
-const steps = [
-  { id: 'analysts', label: 'Analyst Panel', icon: Users },
-  { id: 'interviews', label: 'Expert Interviews', icon: MessageCircle },
-  { id: 'report', label: 'Report Synthesis', icon: FileText },
-];
-
-function ResearchProgress({ sections, isComplete, thinkingState }: ResearchProgressProps) {
+function ResearchProgress({ sections, isComplete, interviewProgress }: ResearchProgressProps) {
   const [currentStep, setCurrentStep] = useState(0);
-  const [displayedContent, setDisplayedContent] = useState('');
-  const contentRef = useRef<HTMLDivElement>(null);
+  const [progress, setProgress] = useState(0);
+  const [eta, setEta] = useState('Estimating time remaining...');
+  const [statusLine, setStatusLine] = useState('Starting parallel interviews...');
+  const [isStale, setIsStale] = useState(false);
 
-  // Animate thinking content for ChatGPT-like streaming effect
+  // Calculate progress and ETA from interviewProgress
   useEffect(() => {
-    if (thinkingState && thinkingState.content && !thinkingState.isComplete) {
-      // Scroll to bottom when new content arrives
-      const timer = setTimeout(() => {
-        contentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-      }, 100);
-      return () => clearTimeout(timer);
-    }
-  }, [thinkingState?.content]);
+    if (interviewProgress) {
+      const p = interviewProgress.percentage || 0;
+      setProgress(Math.min(100, Math.round(p)));
+      setIsStale(interviewProgress.isStale || false);
 
-  // Update displayed content when thinking state changes
-  useEffect(() => {
-    if (thinkingState?.content) {
-      setDisplayedContent(thinkingState.content);
-    } else {
-      setDisplayedContent('');
+      // Format ETA
+      if (interviewProgress.etaSeconds !== null && interviewProgress.etaSeconds !== undefined) {
+        const etaSeconds = interviewProgress.etaSeconds;
+        if (etaSeconds < 60) {
+          setEta(`~${Math.round(etaSeconds)} seconds`);
+        } else {
+          setEta(`~${Math.round(etaSeconds / 60)} min`);
+        }
+      } else {
+        setEta('Estimating time remaining...');
+      }
+
+      // Format status line
+      if (interviewProgress.currentAnalyst) {
+        const turnsPerAnalyst = interviewProgress.total / interviewProgress.totalAnalysts || 1;
+        setStatusLine(
+          `${interviewProgress.currentAnalyst} — Turn ${interviewProgress.currentTurn} of ${Math.round(turnsPerAnalyst)}`
+        );
+      } else {
+        setStatusLine('Starting parallel interviews...');
+      }
     }
-  }, [thinkingState?.content]);
+  }, [interviewProgress]);
 
   useEffect(() => {
     if (sections.length > 0) {
-      setCurrentStep(2); // Interviews complete, report synthesis in progress
+      setCurrentStep(2);
     }
     if (isComplete) {
-      setCurrentStep(3); // Complete
+      setCurrentStep(3);
     }
   }, [sections.length, isComplete]);
 
@@ -64,6 +79,23 @@ function ResearchProgress({ sections, isComplete, thinkingState }: ResearchProgr
           </p>
         </div>
       </div>
+
+      {/* Progress Bar */}
+      {interviewProgress && (
+        <div className="mb-6">
+          <div className="flex justify-between text-xs mb-1 text-text-primary">
+            <span>Overall Progress</span>
+            <span>{progress}%</span>
+          </div>
+          <div className="h-2 bg-bg-tertiary rounded-full overflow-hidden">
+            <div
+              className="h-full bg-accent transition-all duration-500"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <div className="text-xs text-text-secondary mt-1">{eta} remaining</div>
+        </div>
+      )}
 
       {/* Step Indicator */}
       <div className="bg-bg-secondary rounded-xl border border-border-primary p-6 mb-6">
@@ -106,8 +138,8 @@ function ResearchProgress({ sections, isComplete, thinkingState }: ResearchProgr
         </div>
       </div>
 
-      {/* Thinking Display - ChatGPT-like streaming */}
-      {thinkingState && (
+      {/* Real-Time Progress Indicator */}
+      {interviewProgress && (
         <div className="bg-bg-secondary rounded-xl border border-accent/30 p-5 mb-6 animate-fadeIn">
           <div className="flex items-start gap-3">
             <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0">
@@ -116,19 +148,17 @@ function ResearchProgress({ sections, isComplete, thinkingState }: ResearchProgr
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-xs font-medium text-accent">
-                  {thinkingState.analystName}
+                  {interviewProgress.currentAnalyst || 'Analyst'}
                 </span>
                 <span className="text-xs text-text-tertiary">
-                  {thinkingState.analystRole}
+                  {statusLine}
                 </span>
               </div>
               <div className="text-sm text-text-primary leading-relaxed">
-                <span ref={contentRef}>{displayedContent}</span>
-                {!thinkingState.isComplete && (
-                  <span className="inline-flex gap-0.5 ml-1">
-                    <span className="w-1 h-4 bg-accent rounded-sm animate-think-blink" />
-                    <span className="w-1 h-4 bg-accent rounded-sm animate-think-blink" style={{ animationDelay: '0.2s' }} />
-                    <span className="w-1 h-4 bg-accent rounded-sm animate-think-blink" style={{ animationDelay: '0.4s' }} />
+                {eta}
+                {isStale && (
+                  <span className="ml-2 text-xs text-warning">
+                    (Connection lost — showing last known progress)
                   </span>
                 )}
               </div>
@@ -148,6 +178,9 @@ function ResearchProgress({ sections, isComplete, thinkingState }: ResearchProgr
           <span className="text-xs font-medium text-text-secondary">
             Live Activity
           </span>
+        <div className="text-xs text-text-tertiary mb-4">
+          {statusLine}
+        </div>
         </div>
 
         <div className="space-y-3 max-h-80 overflow-y-auto">
@@ -217,5 +250,11 @@ function ResearchProgress({ sections, isComplete, thinkingState }: ResearchProgr
     </div>
   );
 }
+
+const steps = [
+  { id: 'analysts', label: 'Analyst Panel', icon: Users },
+  { id: 'interviews', label: 'Expert Interviews', icon: MessageCircle },
+  { id: 'report', label: 'Report Synthesis', icon: FileText },
+];
 
 export default ResearchProgress;

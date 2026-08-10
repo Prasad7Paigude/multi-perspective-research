@@ -14,7 +14,16 @@ function useResearch() {
     sections: [],
     finalReport: null,
     error: null,
-    interviewProgress: { current: 0, total: 0 },
+    interviewProgress: { 
+      current: 0, 
+      total: 0, 
+      percentage: 0,
+      etaSeconds: null,
+      currentAnalyst: null,
+      currentTurn: 0,
+      totalAnalysts: 0,
+      isStale: false
+    },
   });
   const [thinkingState, setThinkingState] = useState<ThinkingState | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -122,10 +131,39 @@ function useResearch() {
           case 'status':
             // Just a status update, keep current state
             break;
+          case 'progress_update':
+            // Per-analyst progress update (optional: can be used for detailed UI)
+            break;
           case 'interview_progress':
             setState(prev => ({
               ...prev,
-              interviewProgress: data.payload,
+              interviewProgress: {
+                ...prev.interviewProgress,
+                percentage: data.payload.overall_percentage,
+                etaSeconds: data.payload.eta_seconds,
+                currentAnalyst: data.payload.current_analyst,
+                currentTurn: data.payload.current_turn,
+                total: data.payload.total_turns * data.payload.total_analysts,
+                current: data.payload.current_turn * data.payload.total_analysts,
+                totalAnalysts: data.payload.total_analysts,
+                isStale: false,
+              },
+            }));
+            break;
+          case 'snapshot':
+            // Full state snapshot on reconnect
+            setState(prev => ({
+              ...prev,
+              interviewProgress: {
+                percentage: data.payload.overall_percentage,
+                etaSeconds: data.payload.eta_seconds,
+                currentAnalyst: data.payload.current_analyst,
+                currentTurn: data.payload.current_turn,
+                total: data.payload.total_turns * data.payload.total_analysts,
+                current: data.payload.current_turn * data.payload.total_analysts,
+                totalAnalysts: data.payload.total_analysts,
+                isStale: false,
+              },
             }));
             break;
           case 'thinking_start':
@@ -223,13 +261,27 @@ function useResearch() {
     };
 
     es.onerror = () => {
-      // Check if we already have the final report
-      setState(prev => {
-        if (prev.finalReport) {
-          return { ...prev, status: 'complete' };
+      // Mark progress as stale and attempt to reconnect
+      setState(prev => ({
+        ...prev,
+        interviewProgress: {
+          ...prev.interviewProgress,
+          isStale: true,
+        },
+      }));
+      
+      // Attempt to reconnect after a delay
+      const reconnectTimer = setTimeout(() => {
+        if (eventSourceRef.current === es) {
+          startSSEStream(threadId);
         }
-        return prev;
+      }, 5000);
+      
+      // Clean up on close
+      es.addEventListener('close', () => {
+        clearTimeout(reconnectTimer);
       });
+      
       es.close();
       eventSourceRef.current = null;
     };
@@ -250,7 +302,16 @@ function useResearch() {
       sections: [],
       finalReport: null,
       error: null,
-      interviewProgress: { current: 0, total: 0 },
+      interviewProgress: { 
+        current: 0, 
+        total: 0, 
+        percentage: 0,
+        etaSeconds: null,
+        currentAnalyst: null,
+        currentTurn: 0,
+        totalAnalysts: 0,
+        isStale: false
+      },
     });
     setThinkingState(null);
   }, []);

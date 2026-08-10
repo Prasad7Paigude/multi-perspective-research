@@ -14,7 +14,7 @@ export interface ResearchInitResponse {
 
 export interface SSEEvent {
   type: 'analysts' | 'section' | 'report' | 'introduction' | 'conclusion' | 'final_report' | 'status' | 'done' | 'error' |
-        'thinking_start' | 'thinking_chunk' | 'thinking_complete' | 'interview_start' | 'interview_progress';
+        'thinking_start' | 'thinking_chunk' | 'thinking_complete' | 'interview_start' | 'interview_progress' | 'progress_update' | 'snapshot';
   payload: any;
 }
 
@@ -37,5 +37,14 @@ export interface SessionState {
   error: string | null;
   introduction?: string;
   conclusion?: string;
-  interviewProgress?: { current: number; total: number };
+  interviewProgress: {
+    current: number;
+    total: number;
+    percentage: number;
+    etaSeconds: number | null;
+    currentAnalyst: string | null;
+    currentTurn: number;
+    totalAnalysts: number;
+    isStale: boolean;
+  };
 }
