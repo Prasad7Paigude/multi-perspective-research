@@ -21,7 +21,7 @@ function ResearchSetup({ onStart, isLoading }: ResearchSetupProps) {
     <div className="animate-fadeIn">
       {/* Hero */}
       <div className="text-center mb-10 pt-8">
-        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-accent-light mb-5">
+        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-accent-light mb-5 glass-card">
           <Sparkles className="w-7 h-7 text-accent" />
         </div>
         <h2 className="text-2xl font-semibold text-text-primary tracking-tight mb-2">
@@ -35,9 +35,9 @@ function ResearchSetup({ onStart, isLoading }: ResearchSetupProps) {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Research Inquiry */}
-        <div className="bg-bg-secondary rounded-xl border border-border-primary p-5">
+        <div className="glass-card p-5">
           <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-lg bg-accent-light flex items-center justify-center shrink-0 mt-0.5">
+            <div className="w-9 h-9 rounded-lg bg-accent-light flex items-center justify-center shrink-0 mt-0.5 glass-card">
               <MessageSquare className="w-4.5 h-4.5 text-accent" />
             </div>
             <div className="flex-1 min-w-0">
@@ -53,7 +53,7 @@ function ResearchSetup({ onStart, isLoading }: ResearchSetupProps) {
                 onChange={(e) => setTopic(e.target.value)}
                 placeholder="e.g., The impact of generative AI on healthcare diagnostics in 2026..."
                 rows={3}
-                className="w-full px-3.5 py-2.5 text-sm bg-bg-primary border border-border-primary rounded-lg
+                className="w-full px-3.5 py-2.5 text-sm glass-input
                   placeholder:text-text-tertiary text-text-primary
                   focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent
                   transition-colors resize-none"
@@ -66,9 +66,9 @@ function ResearchSetup({ onStart, isLoading }: ResearchSetupProps) {
         </div>
 
         {/* Configuration Panel */}
-        <div className="bg-bg-secondary rounded-xl border border-border-primary p-5">
+        <div className="glass-card p-5">
           <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-lg bg-accent-light flex items-center justify-center shrink-0 mt-0.5">
+            <div className="w-9 h-9 rounded-lg bg-accent-light flex items-center justify-center shrink-0 mt-0.5 glass-card">
               <Users className="w-4.5 h-4.5 text-accent" />
             </div>
             <div className="flex-1 min-w-0 space-y-5">
@@ -89,12 +89,7 @@ function ResearchSetup({ onStart, isLoading }: ResearchSetupProps) {
                   max={6}
                   value={maxAnalysts}
                   onChange={(e) => setMaxAnalysts(Number(e.target.value))}
-                  className="w-full h-1.5 bg-bg-tertiary rounded-full appearance-none cursor-pointer
-                    accent-accent [&::-webkit-slider-thumb]:appearance-none
-                    [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4
-                    [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-accent
-                    [&::-webkit-slider-thumb]:shadow-sm [&::-webkit-slider-thumb]:border-2
-                    [&::-webkit-slider-thumb]:border-white"
+                  className="w-full glass-slider"
                 />
                 <p className="mt-1.5 text-xs text-text-tertiary">
                   How many expert perspectives should we assemble? (1–6)
@@ -118,12 +113,7 @@ function ResearchSetup({ onStart, isLoading }: ResearchSetupProps) {
                   max={4}
                   value={maxTurns}
                   onChange={(e) => setMaxTurns(Number(e.target.value))}
-                  className="w-full h-1.5 bg-bg-tertiary rounded-full appearance-none cursor-pointer
-                    accent-accent [&::-webkit-slider-thumb]:appearance-none
-                    [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4
-                    [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-accent
-                    [&::-webkit-slider-thumb]:shadow-sm [&::-webkit-slider-thumb]:border-2
-                    [&::-webkit-slider-thumb]:border-white"
+                  className="w-full glass-slider"
                 />
                 <p className="mt-1.5 text-xs text-text-tertiary">
                   How many rounds of questioning per analyst? (1–4)
@@ -137,9 +127,8 @@ function ResearchSetup({ onStart, isLoading }: ResearchSetupProps) {
         <button
           type="submit"
           disabled={!topic.trim() || isLoading}
-          className="w-full py-3 px-5 rounded-xl bg-accent text-white text-sm font-medium
-            hover:bg-accent-hover disabled:opacity-40 disabled:cursor-not-allowed
-            transition-all duration-200 active:scale-[0.98]
+          className="w-full py-3 px-5 rounded-xl glass-btn-primary text-sm font-medium
+            disabled:opacity-40 disabled:cursor-not-allowed
             flex items-center justify-center gap-2"
         >
           {isLoading ? (

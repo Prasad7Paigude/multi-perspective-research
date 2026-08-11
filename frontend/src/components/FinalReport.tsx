@@ -34,16 +34,13 @@ function FinalReport({ report, sections, topic, onReset, analysts }: FinalReport
 
   return (
     <div className="animate-fadeIn">
-      {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-success-light flex items-center justify-center">
+          <div className="w-10 h-10 rounded-xl bg-success-light flex items-center justify-center glass-card">
             <FileText className="w-5 h-5 text-success" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-text-primary">
-              Research Report
-            </h2>
+            <h2 className="text-lg font-semibold text-text-primary">Research Report</h2>
             <p className="text-sm text-text-secondary">
               Comprehensive analysis for <strong className="font-medium text-text-primary">"{topic}"</strong>
             </p>
@@ -51,13 +48,10 @@ function FinalReport({ report, sections, topic, onReset, analysts }: FinalReport
         </div>
       </div>
 
-      {/* Action buttons */}
       <div className="flex items-center gap-2 mb-6">
         <button
           onClick={handleCopy}
-          className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-border-primary
-            bg-bg-secondary text-xs font-medium text-text-secondary
-            hover:bg-surface-hover transition-colors"
+          className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg glass-btn-secondary text-xs font-medium text-text-secondary transition-colors"
         >
           {copied ? (
             <>
@@ -73,40 +67,34 @@ function FinalReport({ report, sections, topic, onReset, analysts }: FinalReport
         </button>
         <button
           onClick={handleDownload}
-          className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-border-primary
-            bg-bg-secondary text-xs font-medium text-text-secondary
-            hover:bg-surface-hover transition-colors"
+          className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg glass-btn-secondary text-xs font-medium text-text-secondary transition-colors"
         >
           <Download className="w-3.5 h-3.5" />
           Download Markdown
         </button>
         <button
           onClick={onReset}
-          className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-border-primary
-            bg-bg-secondary text-xs font-medium text-text-secondary
-            hover:bg-surface-hover transition-colors ml-auto"
+          className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg glass-btn-secondary text-xs font-medium text-text-secondary transition-colors ml-auto"
         >
           <RotateCcw className="w-3.5 h-3.5" />
           New Research
         </button>
       </div>
 
-       {/* Summary Stats */}
-       <div className="flex items-center gap-4 mb-6">
-         <div className="px-3 py-1.5 rounded-lg bg-bg-tertiary">
-           <span className="text-xs text-text-secondary">
-             <span className="font-medium text-text-primary">{analysts?.length || sections.length}</span> analyst perspectives
-           </span>
-         </div>
-        <div className="px-3 py-1.5 rounded-lg bg-bg-tertiary">
+      <div className="flex items-center gap-4 mb-6">
+        <div className="px-3 py-1.5 rounded-lg glass-card">
+          <span className="text-xs text-text-secondary">
+            <span className="font-medium text-text-primary">{analysts?.length || sections.length}</span> analyst perspectives
+          </span>
+        </div>
+        <div className="px-3 py-1.5 rounded-lg glass-card">
           <span className="text-xs text-text-secondary">
             <span className="font-medium text-text-primary">{report.split(/\s+/).length}</span> words
           </span>
         </div>
       </div>
 
-      {/* Report Content */}
-      <div className="bg-bg-secondary rounded-xl border border-border-primary p-6 md:p-8">
+      <div className="glass-card p-6 md:p-8">
         <div className="markdown-body">
           <ReactMarkdown remarkPlugins={[remarkGfm]}>
             {report}
@@ -114,7 +102,6 @@ function FinalReport({ report, sections, topic, onReset, analysts }: FinalReport
         </div>
       </div>
 
-      {/* Sections breakdown */}
       {sections.length > 0 && (
         <div className="mt-8">
           <h3 className="text-xs font-semibold text-text-tertiary uppercase tracking-wider mb-3">
@@ -124,12 +111,9 @@ function FinalReport({ report, sections, topic, onReset, analysts }: FinalReport
             {sections.map((section, i) => (
               <details
                 key={i}
-                className="bg-bg-secondary rounded-xl border border-border-primary overflow-hidden group"
+                className="glass-card overflow-hidden group"
               >
-                <summary className="px-5 py-3.5 cursor-pointer text-sm font-medium text-text-primary
-                  hover:bg-surface-hover transition-colors flex items-center gap-2
-                  [&::-webkit-details-marker]:hidden"
-                >
+                <summary className="px-5 py-3.5 cursor-pointer text-sm font-medium text-text-primary hover:bg-surface-hover transition-colors flex items-center gap-2 [&::-webkit-details-marker]:hidden">
                   <span className="w-5 h-5 rounded-full bg-accent-light flex items-center justify-center shrink-0">
                     <span className="text-xs font-semibold text-accent">{i + 1}</span>
                   </span>

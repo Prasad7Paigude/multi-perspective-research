@@ -27,7 +27,7 @@ function AnalystReview({ analysts, topic, onFeedback, onApprove, isProcessing }:
     <div className="animate-fadeIn">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
-        <div className="w-10 h-10 rounded-xl bg-accent-light flex items-center justify-center">
+        <div className="w-10 h-10 rounded-xl bg-accent-light flex items-center justify-center glass-card">
           <Users className="w-5 h-5 text-accent" />
         </div>
         <div>
@@ -48,9 +48,9 @@ function AnalystReview({ analysts, topic, onFeedback, onApprove, isProcessing }:
       </div>
 
       {/* Feedback Section */}
-      <div className="bg-bg-secondary rounded-xl border border-border-primary p-5 mb-4">
+      <div className="glass-card p-5 mb-4">
         <div className="flex items-start gap-3">
-          <div className="w-9 h-9 rounded-lg bg-accent-light flex items-center justify-center shrink-0 mt-0.5">
+          <div className="w-9 h-9 rounded-lg bg-accent-light flex items-center justify-center shrink-0 mt-0.5 glass-card">
             <MessageSquare className="w-4.5 h-4.5 text-accent" />
           </div>
           <div className="flex-1 min-w-0">
@@ -66,7 +66,7 @@ function AnalystReview({ analysts, topic, onFeedback, onApprove, isProcessing }:
               onChange={(e) => setFeedback(e.target.value)}
               placeholder="e.g., Add someone with a regulatory perspective, or include a critic of this technology..."
               rows={2}
-              className="w-full px-3.5 py-2.5 text-sm bg-bg-primary border border-border-primary rounded-lg
+              className="w-full px-3.5 py-2.5 text-sm glass-input
                 placeholder:text-text-tertiary text-text-primary
                 focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent
                 transition-colors resize-none"
@@ -83,9 +83,9 @@ function AnalystReview({ analysts, topic, onFeedback, onApprove, isProcessing }:
         <button
           onClick={handleRefine}
           disabled={!feedback.trim() || isRefining}
-          className="flex-1 py-2.5 px-4 rounded-xl border border-border-primary bg-bg-secondary
+          className="flex-1 py-2.5 px-4 rounded-xl glass-btn-secondary
             text-sm font-medium text-text-primary
-            hover:bg-surface-hover disabled:opacity-40 disabled:cursor-not-allowed
+            disabled:opacity-40 disabled:cursor-not-allowed
             transition-all duration-200 flex items-center justify-center gap-2"
         >
           {isRefining ? (
@@ -103,9 +103,9 @@ function AnalystReview({ analysts, topic, onFeedback, onApprove, isProcessing }:
         <button
           onClick={onApprove}
           disabled={isProcessing}
-          className="flex-[2] py-2.5 px-4 rounded-xl bg-accent text-white text-sm font-medium
-            hover:bg-accent-hover disabled:opacity-40 disabled:cursor-not-allowed
-            transition-all duration-200 active:scale-[0.98]
+          className="flex-[2] py-2.5 px-4 rounded-xl glass-btn-primary text-sm font-medium
+            disabled:opacity-40 disabled:cursor-not-allowed
+            transition-all duration-200
             flex items-center justify-center gap-2"
         >
           {isProcessing ? (

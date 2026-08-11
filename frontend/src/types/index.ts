@@ -14,7 +14,7 @@ export interface ResearchInitResponse {
 
 export interface SSEEvent {
   type: 'analysts' | 'section' | 'report' | 'introduction' | 'conclusion' | 'final_report' | 'status' | 'done' | 'error' |
-        'thinking_start' | 'thinking_chunk' | 'thinking_complete' | 'interview_start' | 'interview_progress' | 'progress_update' | 'snapshot';
+        'thinking_start' | 'thinking_chunk' | 'thinking_complete' | 'interview_start';
   payload: any;
 }
 

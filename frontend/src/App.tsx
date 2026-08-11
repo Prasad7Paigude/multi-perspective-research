@@ -13,7 +13,6 @@ function App() {
     finalReport,
     status,
     error,
-    interviewProgress,
     initResearch,
     submitFeedback,
     approveAnalysts,
@@ -25,7 +24,6 @@ function App() {
       <Header />
 
       <main className="flex-1 max-w-2xl w-full mx-auto px-6 py-8">
-        {/* Status: idle → show setup */}
         {status === 'idle' && (
           <ResearchSetup
             onStart={initResearch}
@@ -33,10 +31,9 @@ function App() {
           />
         )}
 
-        {/* Status: generating_analysts */}
         {status === 'generating_analysts' && (
           <div className="animate-fadeIn text-center pt-16">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-accent-light mb-5">
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-accent-light mb-5 glass-card">
               <span className="w-6 h-6 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
             </div>
             <h2 className="text-lg font-semibold text-text-primary mb-2">
@@ -48,7 +45,6 @@ function App() {
           </div>
         )}
 
-        {/* Status: analysts_pending → show review */}
         {status === 'analysts_pending' && analysts.length > 0 && (
           <AnalystReview
             analysts={analysts}
@@ -59,30 +55,26 @@ function App() {
           />
         )}
 
-        {/* Status: interviewing → show progress */}
         {status === 'interviewing' && (
           <ResearchProgress
             sections={sections}
             isComplete={false}
-            interviewProgress={interviewProgress}
           />
         )}
 
-         {/* Status: complete → show report */}
-         {status === 'complete' && finalReport && (
-           <FinalReport
-             report={finalReport}
-             sections={sections}
-             topic={topic}
-             onReset={reset}
-             analysts={analysts}
-           />
-         )}
+        {status === 'complete' && finalReport && (
+          <FinalReport
+            report={finalReport}
+            sections={sections}
+            topic={topic}
+            onReset={reset}
+            analysts={analysts}
+          />
+        )}
 
-        {/* Status: error */}
         {status === 'error' && (
           <div className="animate-fadeIn text-center pt-16">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-warning-light mb-5">
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-warning-light mb-5 glass-card">
               <span className="text-2xl">⚠</span>
             </div>
             <h2 className="text-lg font-semibold text-text-primary mb-2">
@@ -93,8 +85,9 @@ function App() {
             </p>
             <button
               onClick={reset}
-              className="px-5 py-2.5 rounded-xl bg-accent text-white text-sm font-medium
-                hover:bg-accent-hover transition-all duration-200"
+              className="px-5 py-2.5 rounded-xl glass-btn-primary text-sm font-medium
+                disabled:opacity-40 disabled:cursor-not-allowed
+                transition-all duration-200"
             >
               Try Again
             </button>
@@ -102,7 +95,6 @@ function App() {
         )}
       </main>
 
-      {/* Footer */}
       <footer className="border-t border-border-primary py-4">
         <p className="text-xs text-text-tertiary text-center">
           Research Assistant — AI-Powered Multi-Perspective Analysis

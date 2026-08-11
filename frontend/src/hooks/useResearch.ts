@@ -131,41 +131,7 @@ function useResearch() {
           case 'status':
             // Just a status update, keep current state
             break;
-          case 'progress_update':
-            // Per-analyst progress update (optional: can be used for detailed UI)
-            break;
-          case 'interview_progress':
-            setState(prev => ({
-              ...prev,
-              interviewProgress: {
-                ...prev.interviewProgress,
-                percentage: data.payload.overall_percentage,
-                etaSeconds: data.payload.eta_seconds,
-                currentAnalyst: data.payload.current_analyst,
-                currentTurn: data.payload.current_turn,
-                total: data.payload.total_turns * data.payload.total_analysts,
-                current: data.payload.current_turn * data.payload.total_analysts,
-                totalAnalysts: data.payload.total_analysts,
-                isStale: false,
-              },
-            }));
-            break;
-          case 'snapshot':
-            // Full state snapshot on reconnect
-            setState(prev => ({
-              ...prev,
-              interviewProgress: {
-                percentage: data.payload.overall_percentage,
-                etaSeconds: data.payload.eta_seconds,
-                currentAnalyst: data.payload.current_analyst,
-                currentTurn: data.payload.current_turn,
-                total: data.payload.total_turns * data.payload.total_analysts,
-                current: data.payload.current_turn * data.payload.total_analysts,
-                totalAnalysts: data.payload.total_analysts,
-                isStale: false,
-              },
-            }));
-            break;
+
           case 'thinking_start':
             // Start a new thinking session
             setThinkingState({
