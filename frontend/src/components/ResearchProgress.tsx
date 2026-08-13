@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Users, MessageCircle, FileText, CheckCircle2, Loader2 } from 'lucide-react';
 import SimulatedProgressBar from './SimulatedProgressBar';
 
@@ -15,6 +15,7 @@ const steps = [
 
 function ResearchProgress({ sections, isComplete }: ResearchProgressProps) {
   const [currentStep, setCurrentStep] = useState(0);
+  const progressBarRef = useRef<any>(null);
 
   useEffect(() => {
     if (sections.length > 0) {
@@ -22,6 +23,10 @@ function ResearchProgress({ sections, isComplete }: ResearchProgressProps) {
     }
     if (isComplete) {
       setCurrentStep(3);
+      // Trigger progress bar to animate to 100%
+      if (progressBarRef.current) {
+        progressBarRef.current.complete();
+      }
     }
   }, [sections.length, isComplete]);
 
@@ -40,7 +45,7 @@ function ResearchProgress({ sections, isComplete }: ResearchProgressProps) {
       </div>
 
       <div className="mb-6">
-        <SimulatedProgressBar />
+        <SimulatedProgressBar ref={progressBarRef} />
       </div>
 
       <div className="glass-card p-6 mb-6">

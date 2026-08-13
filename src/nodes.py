@@ -285,6 +285,8 @@ def write_conclusion(state: ResearchGraphState):
 
 
 def finalize_report(state: ResearchGraphState):
+    import re
+    
     content = state["content"]
     if content.startswith("## Insights"):
         content = content.strip("## Insights")
@@ -302,5 +304,14 @@ def finalize_report(state: ResearchGraphState):
         state["conclusion"]
     )
     if sources is not None:
-        final_report += "\n\n## Sources\n" + sources
+        # Format sources with proper markdown paragraph breaks
+        # Split on [n] pattern to separate individual sources
+        source_entries = re.findall(r'(\[\d+\] \S[^\[]*)', sources)
+        if source_entries:
+            # Join with double newlines for proper markdown paragraph separation
+            formatted_sources = "\n\n".join([s.strip() for s in source_entries if s.strip()])
+        else:
+            # Fallback: ensure any existing newlines are double newlines
+            formatted_sources = sources.replace("\n", "\n\n")
+        final_report += "\n\n## Sources\n" + formatted_sources
     return {"final_report": final_report}

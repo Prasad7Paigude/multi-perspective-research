@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 // Default estimated duration for the interview phase (120 seconds = 2 minutes)
 const ESTIMATED_DURATION_MS = 120000;
@@ -12,12 +12,16 @@ const STATUS_MESSAGES = [
   'Drafting the report...',
 ];
 
+// Ease-out quadratic function for deceleration
+const easeOutQuad = (t: number): number => 1 - (1 - t) * (1 - t);
+
 interface SimulatedProgressResult {
   progress: number; // 0-100 (capped at 90 until completion)
   statusText: string;
   start: () => void;
   complete: () => void;
   reset: () => void;
+  isAnimatingToComplete: boolean;
 }
 
 export function useSimulatedProgress(estimatedDurationMs: number = ESTIMATED_DURATION_MS): SimulatedProgressResult {
@@ -25,37 +29,69 @@ export function useSimulatedProgress(estimatedDurationMs: number = ESTIMATED_DUR
   const [statusText, setStatusText] = useState(STATUS_MESSAGES[0]);
   const [isRunning, setIsRunning] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
+  const [isAnimatingToComplete, setIsAnimatingToComplete] = useState(false);
   
   const startTimeRef = useRef<number | null>(null);
   const animationFrameRef = useRef<number | null>(null);
-  const statusIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const statusIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastUpdateTimeRef = useRef<number | null>(null);
 
-  // Rotate status text every 6 seconds
+  // Rotate status text with irregular timing (4-8 seconds)
   useEffect(() => {
     if (!isRunning) return;
     
-    statusIntervalRef.current = setInterval(() => {
+    const rotateStatus = () => {
       const randomIndex = Math.floor(Math.random() * STATUS_MESSAGES.length);
       setStatusText(STATUS_MESSAGES[randomIndex]);
-    }, 6000);
+      
+      // Random interval between 4-8 seconds for natural feel
+      const nextInterval = 4000 + Math.random() * 4000;
+      statusIntervalRef.current = setTimeout(rotateStatus, nextInterval);
+    };
+    
+    statusIntervalRef.current = setTimeout(rotateStatus, 4000 + Math.random() * 4000);
     
     return () => {
       if (statusIntervalRef.current) {
-        clearInterval(statusIntervalRef.current);
+        clearTimeout(statusIntervalRef.current);
       }
     };
   }, [isRunning]);
 
-  // Update progress based on elapsed time
+  // Update progress based on elapsed time with natural irregularity
   useEffect(() => {
-    if (!isRunning || isComplete) return;
+    if (!isRunning || isComplete || isAnimatingToComplete) return;
     
     const updateProgress = () => {
-      if (!startTimeRef.current) return;
+      if (!startTimeRef.current) {
+        startTimeRef.current = Date.now();
+        lastUpdateTimeRef.current = Date.now();
+      }
       
       const elapsed = Date.now() - startTimeRef.current;
-      // Cap at 90% until completion
-      const newProgress = Math.min(90, (elapsed / estimatedDurationMs) * 100);
+      const now = Date.now();
+      
+      // Add natural jitter: only update every 50-200ms (not every frame)
+      if (lastUpdateTimeRef.current && now - lastUpdateTimeRef.current < 50 + Math.random() * 150) {
+        animationFrameRef.current = requestAnimationFrame(updateProgress);
+        return;
+      }
+      
+      lastUpdateTimeRef.current = now;
+      
+      // Calculate base progress with easing
+      let baseProgress = (elapsed / estimatedDurationMs);
+      
+      // Apply ease-out for deceleration
+      baseProgress = easeOutQuad(Math.min(1, baseProgress));
+      
+      // Cap at 90% until completion, with small random jitter
+      let newProgress = Math.min(90, baseProgress * 100);
+      
+      // Add small random jitter to make it feel more natural
+      const jitter = (Math.random() - 0.5) * 0.5; // -0.25% to +0.25%
+      newProgress = Math.max(0, Math.min(90, newProgress + jitter));
+      
       setProgress(newProgress);
       
       // Continue the animation loop
@@ -70,7 +106,7 @@ export function useSimulatedProgress(estimatedDurationMs: number = ESTIMATED_DUR
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [isRunning, isComplete, estimatedDurationMs]);
+  }, [isRunning, isComplete, isAnimatingToComplete, estimatedDurationMs]);
 
   // Start the simulated progress
   const start = () => {
@@ -80,19 +116,55 @@ export function useSimulatedProgress(estimatedDurationMs: number = ESTIMATED_DUR
     startTimeRef.current = Date.now();
   };
 
-  // Complete the progress (jump to 100%)
+  // Animate to 100% completion
+  const animateToComplete = useCallback(() => {
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+    }
+    
+    const startProgress = progress;
+    const startTime = Date.now();
+    const duration = 400; // 400ms animation
+    
+    const animate = () => {
+      const elapsed = Date.now() - startTime;
+      const t = Math.min(1, elapsed / duration);
+      
+      // Ease-out for smooth deceleration
+      const easedT = easeOutQuad(t);
+      const newProgress = startProgress + (100 - startProgress) * easedT;
+      
+      setProgress(newProgress);
+      setIsAnimatingToComplete(true);
+      
+      if (t < 1) {
+        animationFrameRef.current = requestAnimationFrame(animate);
+      } else {
+        setProgress(100);
+        setIsAnimatingToComplete(false);
+        setIsComplete(true);
+        setIsRunning(false);
+        setStatusText('Report ready!');
+      }
+    };
+    
+    animationFrameRef.current = requestAnimationFrame(animate);
+  }, [progress]);
+
+  // Complete the progress (animate to 100%)
   const complete = () => {
     setIsRunning(false);
-    setIsComplete(true);
-    setProgress(100);
     
-    // Clean up intervals
+    // Clean up timeouts
     if (statusIntervalRef.current) {
-      clearInterval(statusIntervalRef.current);
+      clearTimeout(statusIntervalRef.current);
     }
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
     }
+    
+    // Animate to 100%
+    animateToComplete();
   };
 
   // Reset the progress
@@ -104,7 +176,7 @@ export function useSimulatedProgress(estimatedDurationMs: number = ESTIMATED_DUR
     startTimeRef.current = null;
     
     if (statusIntervalRef.current) {
-      clearInterval(statusIntervalRef.current);
+      clearTimeout(statusIntervalRef.current);
     }
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
@@ -117,6 +189,7 @@ export function useSimulatedProgress(estimatedDurationMs: number = ESTIMATED_DUR
     start,
     complete,
     reset,
+    isAnimatingToComplete,
   };
 }
 

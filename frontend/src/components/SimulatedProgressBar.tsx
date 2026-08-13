@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useImperativeHandle, forwardRef } from 'react';
 import { useSimulatedProgress } from '../hooks/useSimulatedProgress';
 
 interface SimulatedProgressBarProps {
@@ -6,11 +6,22 @@ interface SimulatedProgressBarProps {
   estimatedDurationMs?: number;
 }
 
+export interface SimulatedProgressBarHandle {
+  complete: () => void;
+}
+
 export function SimulatedProgressBar({ 
   onComplete, 
   estimatedDurationMs 
-}: SimulatedProgressBarProps) {
-  const { progress, statusText, start, reset } = useSimulatedProgress(estimatedDurationMs);
+}: SimulatedProgressBarProps, ref: any) {
+  const { progress, statusText, start, reset, complete } = useSimulatedProgress(estimatedDurationMs);
+
+  useImperativeHandle(ref, () => ({
+    complete: () => {
+      complete();
+      if (onComplete) onComplete();
+    }
+  }));
 
   // Start progress when component mounts
   useEffect(() => {
@@ -43,11 +54,6 @@ export function SimulatedProgressBar({
             style={{ width: `${progress}%` }}
           />
         </div>
-        
-        {/* Ambient Animation (subtle shimmer) */}
-        <div className="h-2 bg-bg-tertiary rounded-full overflow-hidden relative">
-          <div className="absolute inset-0 animate-shimmer" />
-        </div>
       </div>
 
       {/* Status Text */}
@@ -61,13 +67,8 @@ export function SimulatedProgressBar({
           {statusText}
         </span>
       </div>
-
-      {/* Ambient Pulse Element */}
-      <div className="flex justify-center">
-        <div className="w-4 h-4 rounded-full bg-accent/20 animate-pulse-soft" />
-      </div>
     </div>
   );
 }
 
-export default SimulatedProgressBar;
+export default forwardRef(SimulatedProgressBar);
