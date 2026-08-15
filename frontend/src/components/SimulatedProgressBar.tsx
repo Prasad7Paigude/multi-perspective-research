@@ -1,4 +1,4 @@
-import { useEffect, useImperativeHandle, forwardRef } from 'react';
+import { useEffect, useImperativeHandle, useRef, forwardRef } from 'react';
 import { useSimulatedProgress } from '../hooks/useSimulatedProgress';
 
 interface SimulatedProgressBarProps {
@@ -15,11 +15,11 @@ export function SimulatedProgressBar({
   estimatedDurationMs 
 }: SimulatedProgressBarProps, ref: any) {
   const { progress, statusText, start, reset, complete } = useSimulatedProgress(estimatedDurationMs);
+  const progressFillRef = useRef<HTMLDivElement>(null);
 
   useImperativeHandle(ref, () => ({
     complete: () => {
       complete();
-      if (onComplete) onComplete();
     }
   }));
 
@@ -31,25 +31,37 @@ export function SimulatedProgressBar({
     };
   }, []);
 
-  // Notify parent when progress reaches 100%
+  // Listen for transitionend on progress fill to sync with visual completion
   useEffect(() => {
-    if (progress >= 100 && onComplete) {
-      onComplete();
-    }
+    const fillElement = progressFillRef.current;
+    if (!fillElement || !onComplete) return;
+
+    const handleTransitionEnd = (e: TransitionEvent) => {
+      // Only trigger when the width transition completes and we're at 100%
+      if (e.propertyName === 'width' && progress >= 100) {
+        onComplete();
+      }
+    };
+
+    fillElement.addEventListener('transitionend', handleTransitionEnd);
+    return () => {
+      fillElement.removeEventListener('transitionend', handleTransitionEnd);
+    };
   }, [progress, onComplete]);
 
   return (
     <div className="w-full">
       {/* Progress Bar Container */}
-      <div className="mb-4">
+      <div className="mb-2">
         <div className="flex justify-between text-xs mb-1 text-text-primary">
           <span>Research Progress</span>
           <span>{Math.round(progress)}%</span>
         </div>
         
         {/* Progress Bar */}
-        <div className="h-2 bg-bg-tertiary rounded-full overflow-hidden glass">
+        <div className="h-2 bg-bg-tertiary rounded-full overflow-hidden">
           <div
+            ref={progressFillRef}
             className="h-full bg-accent transition-all duration-500"
             style={{ width: `${progress}%` }}
           />
@@ -57,15 +69,8 @@ export function SimulatedProgressBar({
       </div>
 
       {/* Status Text */}
-      <div className="flex items-center gap-2 mb-2">
-        <div className="flex gap-1">
-          <span className="w-2 h-2 rounded-full bg-accent typing-dot" />
-          <span className="w-2 h-2 rounded-full bg-accent typing-dot" />
-          <span className="w-2 h-2 rounded-full bg-accent typing-dot" />
-        </div>
-        <span className="text-sm font-medium text-text-secondary">
-          {statusText}
-        </span>
+      <div className="text-sm font-medium text-text-secondary">
+        {statusText}
       </div>
     </div>
   );

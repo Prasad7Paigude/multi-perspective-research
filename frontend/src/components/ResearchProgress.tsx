@@ -22,7 +22,6 @@ function ResearchProgress({ sections, isComplete }: ResearchProgressProps) {
       setCurrentStep(2);
     }
     if (isComplete) {
-      setCurrentStep(3);
       // Trigger progress bar to animate to 100%
       if (progressBarRef.current) {
         progressBarRef.current.complete();
@@ -45,7 +44,10 @@ function ResearchProgress({ sections, isComplete }: ResearchProgressProps) {
       </div>
 
       <div className="mb-6">
-        <SimulatedProgressBar ref={progressBarRef} />
+        <SimulatedProgressBar 
+          ref={progressBarRef} 
+          onComplete={() => setCurrentStep(3)}
+        />
       </div>
 
       <div className="glass-card p-6 mb-6">
@@ -87,7 +89,7 @@ function ResearchProgress({ sections, isComplete }: ResearchProgressProps) {
         <div className="space-y-3 max-h-80 overflow-y-auto">
           {currentStep === 0 && (
             <div className="flex items-center gap-2 text-xs text-text-tertiary animate-fadeIn glass-card p-3">
-              <span className="w-1.5 h-1.5 rounded-full bg-accent" />
+              <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
               Initializing analyst panel...
             </div>
           )}
