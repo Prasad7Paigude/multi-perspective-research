@@ -20,10 +20,17 @@ function App() {
   } = useResearch();
 
   return (
-    <div className="min-h-screen bg-bg-primary flex flex-col">
+    <div className="min-h-screen bg-bg-primary flex flex-col relative z-0">
+      {/* Gemini Drifting Blobs Background */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden z-[-1]">
+        <div className="absolute w-[350px] md:w-[550px] h-[350px] md:h-[550px] rounded-full bg-blue-500/8 dark:bg-blue-500/12 blur-[90px] md:blur-[120px] animate-blob-1 top-[-10%] left-[-10%]" />
+        <div className="absolute w-[400px] md:w-[650px] h-[400px] md:h-[650px] rounded-full bg-purple-500/8 dark:bg-purple-500/12 blur-[100px] md:blur-[130px] animate-blob-2 bottom-[-10%] right-[-10%]" />
+        <div className="absolute w-[300px] md:w-[500px] h-[300px] md:h-[500px] rounded-full bg-pink-500/8 dark:bg-pink-500/12 blur-[80px] md:blur-[110px] animate-blob-3 top-[25%] right-[5%]" />
+      </div>
+
       <Header />
 
-      <main className="flex-1 max-w-2xl w-full mx-auto px-6 py-8">
+      <main className="flex-1 max-w-2xl w-full mx-auto px-6 py-8 relative z-10">
         {status === 'idle' && (
           <ResearchSetup
             onStart={initResearch}
@@ -33,10 +40,11 @@ function App() {
 
         {status === 'generating_analysts' && (
           <div className="animate-fadeIn text-center pt-16">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-accent-light mb-5 glass-card">
-              <span className="w-6 h-6 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-accent-light mb-6 gemini-card relative overflow-hidden">
+              <div className="absolute inset-0 animate-shimmer" />
+              <span className="w-6 h-6 border-2 border-accent/30 border-t-accent rounded-full animate-spin z-10" />
             </div>
-            <h2 className="text-lg font-semibold text-text-primary mb-2">
+            <h2 className="text-xl font-semibold text-text-primary mb-2 tracking-tight">
               Assembling Analyst Panel
             </h2>
             <p className="text-sm text-text-secondary max-w-sm mx-auto">
@@ -74,10 +82,10 @@ function App() {
 
         {status === 'error' && (
           <div className="animate-fadeIn text-center pt-16">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-warning-light mb-5 glass-card">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-warning-light mb-6 gemini-card">
               <span className="text-2xl">⚠</span>
             </div>
-            <h2 className="text-lg font-semibold text-text-primary mb-2">
+            <h2 className="text-xl font-semibold text-text-primary mb-2 tracking-tight">
               Something went wrong
             </h2>
             <p className="text-sm text-text-secondary max-w-md mx-auto mb-6">
@@ -85,7 +93,7 @@ function App() {
             </p>
             <button
               onClick={reset}
-              className="px-5 py-2.5 rounded-xl glass-btn-primary text-sm font-medium
+              className="px-6 py-3 rounded-full gemini-btn-primary text-sm font-medium
                 disabled:opacity-40 disabled:cursor-not-allowed
                 transition-all duration-200"
             >
@@ -95,7 +103,7 @@ function App() {
         )}
       </main>
 
-      <footer className="border-t border-border-primary py-4">
+      <footer className="border-t border-border-primary py-6 relative z-10 bg-surface-bg">
         <p className="text-xs text-text-tertiary text-center">
           Research Assistant — AI-Powered Multi-Perspective Analysis
         </p>

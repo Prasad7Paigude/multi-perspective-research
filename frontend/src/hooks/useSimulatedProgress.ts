@@ -34,7 +34,12 @@ export function useSimulatedProgress(estimatedDurationMs: number = ESTIMATED_DUR
   const startTimeRef = useRef<number | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const statusIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastUpdateTimeRef = useRef<number | null>(null);
+  const progressRef = useRef<number>(0);
+
+  const setProgressWithRef = (val: number) => {
+    progressRef.current = val;
+    setProgress(val);
+  };
 
   // Rotate status text with irregular timing (4-8 seconds)
   useEffect(() => {
@@ -58,52 +63,50 @@ export function useSimulatedProgress(estimatedDurationMs: number = ESTIMATED_DUR
     };
   }, [isRunning]);
 
-  // Update progress based on elapsed time with natural irregularity
+  // Update progress based on elapsed time with pronounced irregular pacing and random step sizes
   useEffect(() => {
     if (!isRunning || isComplete || isAnimatingToComplete) return;
     
-    const updateProgress = () => {
+    let timerId: ReturnType<typeof setTimeout> | null = null;
+    
+    const updateProgressTick = () => {
       if (!startTimeRef.current) {
         startTimeRef.current = Date.now();
-        lastUpdateTimeRef.current = Date.now();
       }
       
       const elapsed = Date.now() - startTimeRef.current;
-      const now = Date.now();
       
-      // Add natural jitter: only update every 50-200ms (not every frame)
-      if (lastUpdateTimeRef.current && now - lastUpdateTimeRef.current < 50 + Math.random() * 150) {
-        animationFrameRef.current = requestAnimationFrame(updateProgress);
-        return;
+      // Calculate eased target progress (0 to 90)
+      const t = Math.min(1, elapsed / estimatedDurationMs);
+      const targetProgress = easeOutQuad(t) * 90;
+      
+      const current = progressRef.current;
+      if (current < targetProgress) {
+        // Step size varies randomly between 0.5% and 8%
+        const maxStep = targetProgress - current;
+        const randomStep = 0.5 + Math.random() * 7.5;
+        const step = Math.min(maxStep, randomStep);
+        
+        setProgressWithRef(Math.min(90, current + step));
       }
       
-      lastUpdateTimeRef.current = now;
-      
-      // Calculate base progress with easing
-      let baseProgress = (elapsed / estimatedDurationMs);
-      
-      // Apply ease-out for deceleration
-      baseProgress = easeOutQuad(Math.min(1, baseProgress));
-      
-      // Cap at 90% until completion, with small random jitter
-      let newProgress = Math.min(90, baseProgress * 100);
-      
-      // Add small random jitter to make it feel more natural
-      const jitter = (Math.random() - 0.5) * 0.5; // -0.25% to +0.25%
-      newProgress = Math.max(0, Math.min(90, newProgress + jitter));
-      
-      setProgress(newProgress);
-      
-      // Continue the animation loop
-      animationFrameRef.current = requestAnimationFrame(updateProgress);
+      // Pronounced irregular timing:
+      // 70% chance of a quick succession update (200-400ms)
+      // 30% chance of a long pause (1.5 - 3.0s)
+      const isQuick = Math.random() < 0.7;
+      const nextDelay = isQuick 
+        ? 200 + Math.random() * 200 
+        : 1500 + Math.random() * 1500;
+        
+      timerId = setTimeout(updateProgressTick, nextDelay);
     };
     
-    // Start the animation loop
-    animationFrameRef.current = requestAnimationFrame(updateProgress);
+    // First update tick
+    timerId = setTimeout(updateProgressTick, 200 + Math.random() * 200);
     
     return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
+      if (timerId) {
+        clearTimeout(timerId);
       }
     };
   }, [isRunning, isComplete, isAnimatingToComplete, estimatedDurationMs]);
@@ -112,7 +115,7 @@ export function useSimulatedProgress(estimatedDurationMs: number = ESTIMATED_DUR
   const start = () => {
     setIsRunning(true);
     setIsComplete(false);
-    setProgress(0);
+    setProgressWithRef(0);
     startTimeRef.current = Date.now();
   };
 
@@ -122,9 +125,9 @@ export function useSimulatedProgress(estimatedDurationMs: number = ESTIMATED_DUR
       cancelAnimationFrame(animationFrameRef.current);
     }
     
-    const startProgress = progress;
+    const startProgress = progressRef.current;
     const startTime = Date.now();
-    const duration = 400; // 400ms animation
+    const duration = 500; // 500ms transition to 100%
     
     const animate = () => {
       const elapsed = Date.now() - startTime;
@@ -134,13 +137,13 @@ export function useSimulatedProgress(estimatedDurationMs: number = ESTIMATED_DUR
       const easedT = easeOutQuad(t);
       const newProgress = startProgress + (100 - startProgress) * easedT;
       
-      setProgress(newProgress);
+      setProgressWithRef(newProgress);
       setIsAnimatingToComplete(true);
       
       if (t < 1) {
         animationFrameRef.current = requestAnimationFrame(animate);
       } else {
-        setProgress(100);
+        setProgressWithRef(100);
         setIsAnimatingToComplete(false);
         setIsComplete(true);
         setIsRunning(false);
@@ -149,7 +152,7 @@ export function useSimulatedProgress(estimatedDurationMs: number = ESTIMATED_DUR
     };
     
     animationFrameRef.current = requestAnimationFrame(animate);
-  }, [progress]);
+  }, []);
 
   // Complete the progress (animate to 100%)
   const complete = () => {
@@ -163,7 +166,7 @@ export function useSimulatedProgress(estimatedDurationMs: number = ESTIMATED_DUR
       cancelAnimationFrame(animationFrameRef.current);
     }
     
-    // Animate to 100%
+    // Animate to 100
     animateToComplete();
   };
 
@@ -171,7 +174,7 @@ export function useSimulatedProgress(estimatedDurationMs: number = ESTIMATED_DUR
   const reset = () => {
     setIsRunning(false);
     setIsComplete(false);
-    setProgress(0);
+    setProgressWithRef(0);
     setStatusText(STATUS_MESSAGES[0]);
     startTimeRef.current = null;
     

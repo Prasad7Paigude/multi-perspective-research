@@ -35,23 +35,23 @@ function FinalReport({ report, sections, topic, onReset, analysts }: FinalReport
   return (
     <div className="animate-fadeIn">
       <div className="flex items-start justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-success-light flex items-center justify-center glass-card">
+        <div className="flex items-center gap-3.5">
+          <div className="w-10 h-10 rounded-xl bg-success-light flex items-center justify-center gemini-card shrink-0">
             <FileText className="w-5 h-5 text-success" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-text-primary">Research Report</h2>
-            <p className="text-sm text-text-secondary">
-              Comprehensive analysis for <strong className="font-medium text-text-primary">"{topic}"</strong>
+            <h2 className="text-xl font-bold text-text-primary tracking-tight">Research Report</h2>
+            <p className="text-sm text-text-secondary leading-relaxed">
+              Comprehensive analysis for <strong className="font-semibold text-text-primary">"{topic}"</strong>
             </p>
           </div>
         </div>
       </div>
 
-      <div className="flex items-center gap-2 mb-6">
+      <div className="flex items-center gap-2.5 mb-6">
         <button
           onClick={handleCopy}
-          className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg glass-btn-secondary text-xs font-medium text-text-secondary transition-colors"
+          className="flex items-center gap-1.5 px-4 py-2.5 rounded-full gemini-btn-secondary text-xs font-semibold text-text-secondary transition-colors cursor-pointer"
         >
           {copied ? (
             <>
@@ -67,14 +67,14 @@ function FinalReport({ report, sections, topic, onReset, analysts }: FinalReport
         </button>
         <button
           onClick={handleDownload}
-          className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg glass-btn-secondary text-xs font-medium text-text-secondary transition-colors"
+          className="flex items-center gap-1.5 px-4 py-2.5 rounded-full gemini-btn-secondary text-xs font-semibold text-text-secondary transition-colors cursor-pointer"
         >
           <Download className="w-3.5 h-3.5" />
           Download Markdown
         </button>
         <button
           onClick={onReset}
-          className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg glass-btn-secondary text-xs font-medium text-text-secondary transition-colors ml-auto"
+          className="flex items-center gap-1.5 px-4 py-2.5 rounded-full gemini-btn-secondary text-xs font-semibold text-text-secondary transition-colors ml-auto cursor-pointer"
         >
           <RotateCcw className="w-3.5 h-3.5" />
           New Research
@@ -82,19 +82,19 @@ function FinalReport({ report, sections, topic, onReset, analysts }: FinalReport
       </div>
 
       <div className="flex items-center gap-4 mb-6">
-        <div className="px-3 py-1.5 rounded-lg glass-card">
+        <div className="px-3.5 py-1.5 rounded-xl gemini-card">
           <span className="text-xs text-text-secondary">
-            <span className="font-medium text-text-primary">{analysts?.length || sections.length}</span> analyst perspectives
+            <span className="font-bold text-text-primary">{analysts?.length || sections.length}</span> analyst perspectives
           </span>
         </div>
-        <div className="px-3 py-1.5 rounded-lg glass-card">
+        <div className="px-3.5 py-1.5 rounded-xl gemini-card">
           <span className="text-xs text-text-secondary">
-            <span className="font-medium text-text-primary">{report.split(/\s+/).length}</span> words
+            <span className="font-bold text-text-primary">{report.split(/\s+/).length}</span> words
           </span>
         </div>
       </div>
 
-      <div className="glass-card p-6 md:p-8">
+      <div className="gemini-card p-6 md:p-8">
         <div className="markdown-body">
           <ReactMarkdown remarkPlugins={[remarkGfm]}>
             {report}
@@ -104,18 +104,18 @@ function FinalReport({ report, sections, topic, onReset, analysts }: FinalReport
 
       {sections.length > 0 && (
         <div className="mt-8">
-          <h3 className="text-xs font-semibold text-text-tertiary uppercase tracking-wider mb-3">
+          <h3 className="text-xs font-bold text-text-tertiary uppercase tracking-wider mb-3 pl-1">
             Individual Analyst Perspectives
           </h3>
           <div className="space-y-3">
             {sections.map((section, i) => (
               <details
                 key={i}
-                className="glass-card overflow-hidden group"
+                className="gemini-card overflow-hidden group"
               >
-                <summary className="px-5 py-3.5 cursor-pointer text-sm font-medium text-text-primary hover:bg-surface-hover transition-colors flex items-center gap-2 [&::-webkit-details-marker]:hidden">
+                <summary className="px-5 py-3.5 cursor-pointer text-sm font-semibold text-text-primary hover:bg-surface-hover transition-colors flex items-center gap-2 [&::-webkit-details-marker]:hidden">
                   <span className="w-5 h-5 rounded-full bg-accent-light flex items-center justify-center shrink-0">
-                    <span className="text-xs font-semibold text-accent">{i + 1}</span>
+                    <span className="text-xs font-bold bg-gradient-to-r from-[#4285f4] to-[#9b51e0] bg-clip-text text-transparent">{i + 1}</span>
                   </span>
                   {section.replace(/^##\s+/, '').split('\n')[0] || `Perspective ${i + 1}`}
                 </summary>

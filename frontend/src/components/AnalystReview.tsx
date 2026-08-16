@@ -26,37 +26,37 @@ function AnalystReview({ analysts, topic, onFeedback, onApprove, isProcessing }:
   return (
     <div className="animate-fadeIn">
       {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-10 h-10 rounded-xl bg-accent-light flex items-center justify-center glass-card">
-          <Users className="w-5 h-5 text-accent" />
+      <div className="flex items-center gap-3.5 mb-6">
+        <div className="w-10 h-10 rounded-xl bg-accent-light flex items-center justify-center gemini-card shrink-0">
+          <Users className="w-5 h-5 text-[#4285f4]" />
         </div>
         <div>
-          <h2 className="text-lg font-semibold text-text-primary">
+          <h2 className="text-xl font-bold text-text-primary tracking-tight">
             Analyst Panel Review
           </h2>
-          <p className="text-sm text-text-secondary">
-            Review the assembled expert panel for your inquiry on <strong className="font-medium text-text-primary">"{topic}"</strong>
+          <p className="text-sm text-text-secondary leading-relaxed">
+            Review the assembled expert panel for your inquiry on <strong className="font-semibold text-text-primary">"{topic}"</strong>
           </p>
         </div>
       </div>
 
       {/* Analyst Cards */}
-      <div className="grid gap-3 mb-6">
+      <div className="grid gap-4 mb-6">
         {analysts.map((analyst, i) => (
           <AnalystCard key={analyst.name} analyst={analyst} index={i} />
         ))}
       </div>
 
       {/* Feedback Section */}
-      <div className="glass-card p-5 mb-4">
+      <div className="gemini-card p-5 mb-5">
         <div className="flex items-start gap-3">
-          <div className="w-9 h-9 rounded-lg bg-accent-light flex items-center justify-center shrink-0 mt-0.5 glass-card">
-            <MessageSquare className="w-4.5 h-4.5 text-accent" />
+          <div className="w-9 h-9 rounded-lg bg-accent-light flex items-center justify-center shrink-0 mt-0.5 gemini-card">
+            <MessageSquare className="w-4.5 h-4.5 text-[#9b51e0]" />
           </div>
           <div className="flex-1 min-w-0">
             <label
               htmlFor="feedback"
-              className="block text-sm font-medium text-text-primary mb-1.5"
+              className="block text-sm font-semibold text-text-primary mb-1.5"
             >
               Refinement Guidance
             </label>
@@ -66,7 +66,7 @@ function AnalystReview({ analysts, topic, onFeedback, onApprove, isProcessing }:
               onChange={(e) => setFeedback(e.target.value)}
               placeholder="e.g., Add someone with a regulatory perspective, or include a critic of this technology..."
               rows={2}
-              className="w-full px-3.5 py-2.5 text-sm glass-input
+              className="w-full px-4 py-3 text-sm gemini-input
                 placeholder:text-text-tertiary text-text-primary
                 focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent
                 transition-colors resize-none"
@@ -79,12 +79,12 @@ function AnalystReview({ analysts, topic, onFeedback, onApprove, isProcessing }:
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-4">
         <button
           onClick={handleRefine}
           disabled={!feedback.trim() || isRefining}
-          className="flex-1 py-2.5 px-4 rounded-xl glass-btn-secondary
-            text-sm font-medium text-text-primary
+          className="flex-1 py-3 px-5 rounded-full gemini-btn-secondary
+            text-sm font-semibold text-text-primary cursor-pointer
             disabled:opacity-40 disabled:cursor-not-allowed
             transition-all duration-200 flex items-center justify-center gap-2"
         >
@@ -103,7 +103,7 @@ function AnalystReview({ analysts, topic, onFeedback, onApprove, isProcessing }:
         <button
           onClick={onApprove}
           disabled={isProcessing}
-          className="flex-[2] py-2.5 px-4 rounded-xl glass-btn-primary text-sm font-medium
+          className="flex-[1.8] py-3 px-5 rounded-full gemini-btn-primary text-sm font-semibold cursor-pointer
             disabled:opacity-40 disabled:cursor-not-allowed
             transition-all duration-200
             flex items-center justify-center gap-2"

@@ -52,24 +52,28 @@ export function SimulatedProgressBar({
   return (
     <div className="w-full">
       {/* Progress Bar Container */}
-      <div className="mb-2">
-        <div className="flex justify-between text-xs mb-1 text-text-primary">
+      <div className="mb-3">
+        <div className="flex justify-between text-xs font-bold uppercase tracking-wider mb-2 text-text-secondary">
           <span>Research Progress</span>
-          <span>{Math.round(progress)}%</span>
+          <span className="bg-accent-light px-2 py-0.5 rounded-full text-accent font-semibold">{Math.round(progress)}%</span>
         </div>
         
         {/* Progress Bar */}
-        <div className="h-2 bg-bg-tertiary rounded-full overflow-hidden">
+        <div className="h-3 bg-bg-tertiary rounded-full overflow-hidden shadow-inner">
           <div
             ref={progressFillRef}
-            className="h-full bg-accent transition-all duration-500"
-            style={{ width: `${progress}%` }}
+            className="h-full transition-all duration-300 ease-out"
+            style={{ 
+              width: `${progress}%`,
+              background: 'var(--gradient-gemini)'
+            }}
           />
         </div>
       </div>
 
       {/* Status Text */}
-      <div className="text-sm font-medium text-text-secondary">
+      <div className="text-sm font-semibold text-text-primary bg-bg-secondary/40 px-3 py-2.5 rounded-xl border border-border-primary inline-block">
+        <span className="inline-block animate-pulse mr-2">✦</span>
         {statusText}
       </div>
     </div>

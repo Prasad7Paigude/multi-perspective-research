@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { MessageSquare, Users, Sparkles } from 'lucide-react';
 
 interface ResearchSetupProps {
@@ -11,6 +11,21 @@ function ResearchSetup({ onStart, isLoading }: ResearchSetupProps) {
   const [maxAnalysts, setMaxAnalysts] = useState(3);
   const [maxTurns, setMaxTurns] = useState(2);
 
+  const analystsSliderRef = useRef<HTMLInputElement>(null);
+  const turnsSliderRef = useRef<HTMLInputElement>(null);
+
+  // Initialize gradient slider fill positions on mount
+  useEffect(() => {
+    if (analystsSliderRef.current) {
+      const percent = ((maxAnalysts - 1) / (6 - 1)) * 100;
+      analystsSliderRef.current.style.setProperty('--slider-fill', percent + '%');
+    }
+    if (turnsSliderRef.current) {
+      const percent = ((maxTurns - 1) / (4 - 1)) * 100;
+      turnsSliderRef.current.style.setProperty('--slider-fill', percent + '%');
+    }
+  }, []);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!topic.trim()) return;
@@ -21,10 +36,10 @@ function ResearchSetup({ onStart, isLoading }: ResearchSetupProps) {
     <div className="animate-fadeIn">
       {/* Hero */}
       <div className="text-center mb-10 pt-8">
-        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-accent-light mb-5 glass-card">
-          <Sparkles className="w-7 h-7 text-accent" />
+        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-accent-light mb-5 gemini-card">
+          <Sparkles className="w-7 h-7 text-[#4285f4]" />
         </div>
-        <h2 className="text-2xl font-semibold text-text-primary tracking-tight mb-2">
+        <h2 className="text-2xl font-bold text-text-primary tracking-tight mb-2">
           What would you like to explore?
         </h2>
         <p className="text-sm text-text-secondary max-w-md mx-auto leading-relaxed">
@@ -35,15 +50,15 @@ function ResearchSetup({ onStart, isLoading }: ResearchSetupProps) {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Research Inquiry */}
-        <div className="glass-card p-5">
+        <div className="gemini-card p-5">
           <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-lg bg-accent-light flex items-center justify-center shrink-0 mt-0.5 glass-card">
-              <MessageSquare className="w-4.5 h-4.5 text-accent" />
+            <div className="w-9 h-9 rounded-lg bg-accent-light flex items-center justify-center shrink-0 mt-0.5 gemini-card">
+              <MessageSquare className="w-4.5 h-4.5 text-[#4285f4]" />
             </div>
             <div className="flex-1 min-w-0">
               <label
                 htmlFor="topic"
-                className="block text-sm font-medium text-text-primary mb-1.5"
+                className="block text-sm font-semibold text-text-primary mb-1.5"
               >
                 Research Inquiry
               </label>
@@ -53,7 +68,7 @@ function ResearchSetup({ onStart, isLoading }: ResearchSetupProps) {
                 onChange={(e) => setTopic(e.target.value)}
                 placeholder="e.g., The impact of generative AI on healthcare diagnostics in 2026..."
                 rows={3}
-                className="w-full px-3.5 py-2.5 text-sm glass-input
+                className="w-full px-4 py-3 text-sm gemini-input
                   placeholder:text-text-tertiary text-text-primary
                   focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent
                   transition-colors resize-none"
@@ -66,19 +81,19 @@ function ResearchSetup({ onStart, isLoading }: ResearchSetupProps) {
         </div>
 
         {/* Configuration Panel */}
-        <div className="glass-card p-5">
+        <div className="gemini-card p-5">
           <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-lg bg-accent-light flex items-center justify-center shrink-0 mt-0.5 glass-card">
-              <Users className="w-4.5 h-4.5 text-accent" />
+            <div className="w-9 h-9 rounded-lg bg-accent-light flex items-center justify-center shrink-0 mt-0.5 gemini-card">
+              <Users className="w-4.5 h-4.5 text-[#9b51e0]" />
             </div>
             <div className="flex-1 min-w-0 space-y-5">
               {/* Analyst panel size */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label htmlFor="maxAnalysts" className="text-sm font-medium text-text-primary">
+                  <label htmlFor="maxAnalysts" className="text-sm font-semibold text-text-primary">
                     Analyst Panel Size
                   </label>
-                  <span className="text-sm font-medium text-accent tabular-nums">
+                  <span className="text-sm font-bold text-accent tabular-nums bg-accent-light px-2.5 py-0.5 rounded-full">
                     {maxAnalysts} {maxAnalysts === 1 ? 'analyst' : 'analysts'}
                   </span>
                 </div>
@@ -88,8 +103,15 @@ function ResearchSetup({ onStart, isLoading }: ResearchSetupProps) {
                   min={1}
                   max={6}
                   value={maxAnalysts}
-                  onChange={(e) => setMaxAnalysts(Number(e.target.value))}
-                  className="w-full glass-slider"
+                  ref={analystsSliderRef}
+                  onChange={(e) => {
+                    const target = e.target as HTMLInputElement;
+                    const value = Number(target.value);
+                    setMaxAnalysts(value);
+                    const percent = ((value - 1) / 5) * 100;
+                    target.style.setProperty('--slider-fill', percent + '%');
+                  }}
+                  className="w-full gemini-slider"
                 />
                 <p className="mt-1.5 text-xs text-text-tertiary">
                   How many expert perspectives should we assemble? (1–6)
@@ -99,10 +121,10 @@ function ResearchSetup({ onStart, isLoading }: ResearchSetupProps) {
               {/* Interview Depth */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label htmlFor="maxTurns" className="text-sm font-medium text-text-primary">
+                  <label htmlFor="maxTurns" className="text-sm font-semibold text-text-primary">
                     Interview Depth
                   </label>
-                  <span className="text-sm font-medium text-accent tabular-nums">
+                  <span className="text-sm font-bold text-accent tabular-nums bg-accent-light px-2.5 py-0.5 rounded-full">
                     {maxTurns} {maxTurns === 1 ? 'round' : 'rounds'}
                   </span>
                 </div>
@@ -112,8 +134,15 @@ function ResearchSetup({ onStart, isLoading }: ResearchSetupProps) {
                   min={1}
                   max={4}
                   value={maxTurns}
-                  onChange={(e) => setMaxTurns(Number(e.target.value))}
-                  className="w-full glass-slider"
+                  ref={turnsSliderRef}
+                  onChange={(e) => {
+                    const target = e.target as HTMLInputElement;
+                    const value = Number(target.value);
+                    setMaxTurns(value);
+                    const percent = ((value - 1) / 3) * 100;
+                    target.style.setProperty('--slider-fill', percent + '%');
+                  }}
+                  className="w-full gemini-slider"
                 />
                 <p className="mt-1.5 text-xs text-text-tertiary">
                   How many rounds of questioning per analyst? (1–4)
@@ -127,9 +156,9 @@ function ResearchSetup({ onStart, isLoading }: ResearchSetupProps) {
         <button
           type="submit"
           disabled={!topic.trim() || isLoading}
-          className="w-full py-3 px-5 rounded-xl glass-btn-primary text-sm font-medium
+          className="w-full py-3.5 px-6 rounded-full gemini-btn-primary text-sm font-semibold
             disabled:opacity-40 disabled:cursor-not-allowed
-            flex items-center justify-center gap-2"
+            flex items-center justify-center gap-2 cursor-pointer"
         >
           {isLoading ? (
             <>
@@ -138,7 +167,7 @@ function ResearchSetup({ onStart, isLoading }: ResearchSetupProps) {
             </>
           ) : (
             <>
-              <Sparkles className="w-4 h-4" />
+              <Sparkles className="w-4.5 h-4.5" />
               Begin Research
             </>
           )}
