@@ -289,7 +289,7 @@ def finalize_report(state: ResearchGraphState):
     
     content = state["content"]
     if content.startswith("## Insights"):
-        content = content.strip("## Insights")
+        content = content[len("## Insights"):].lstrip()
     if "## Sources" in content:
         try:
             content, sources = content.split("\n## Sources\n")
@@ -298,8 +298,15 @@ def finalize_report(state: ResearchGraphState):
     else:
         sources = None
 
+    introduction = state["introduction"]
+    # Normalize the introduction title: the intro prompt instructs the LLM to use a
+    # '# ' heading for the title, which LLMs frequently double-up into '# # Title'.
+    # Collapse any leading run of '#' characters into a single proper heading so
+    # the report does not render a literal '#' in the title.
+    introduction = re.sub(r"^(#+)\s*(#+\s*)?", "# ", introduction, count=1) if introduction.startswith("#") else introduction
+
     final_report = (
-        state["introduction"] + "\n\n---\n\n" +
+        introduction + "\n\n---\n\n" +
         content + "\n\n---\n\n" +
         state["conclusion"]
     )

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Users, MessageCircle, FileText, CheckCircle2, Loader2 } from 'lucide-react';
 import SimulatedProgressBar from './SimulatedProgressBar';
 
@@ -14,20 +14,37 @@ const steps = [
 ];
 
 function ResearchProgress({ sections, isComplete }: ResearchProgressProps) {
-  const [currentStep, setCurrentStep] = useState(0);
   const progressBarRef = useRef<any>(null);
 
+  // Randomized stage thresholds - generated once per run for natural pacing
+  const stageThresholdsRef = useRef<{ stage1: number; stage2: number } | null>(null);
+  if (!stageThresholdsRef.current) {
+    stageThresholdsRef.current = {
+      stage1: 25 + Math.random() * 15, // 25-40% for stage 1 transition
+      stage2: 55 + Math.random() * 20, // 55-75% for stage 2 transition
+    };
+  }
+
+  // Track the simulated progress value from the progress bar
+  const [progressValue, setProgressValue] = useState(0);
+
+  // Compute the current step from progress, randomized thresholds, and real completion
+  const currentStep = useMemo(() => {
+    if (isComplete) return 3;
+    const { stage1, stage2 } = stageThresholdsRef.current!;
+    if (progressValue < stage1) return 0;
+    if (progressValue < stage2) return 1;
+    return 2;
+  }, [progressValue, isComplete]);
+
   useEffect(() => {
-    if (sections.length > 0) {
-      setCurrentStep(2);
-    }
     if (isComplete) {
       // Trigger progress bar to animate to 100%
       if (progressBarRef.current) {
         progressBarRef.current.complete();
       }
     }
-  }, [sections.length, isComplete]);
+  }, [isComplete]);
 
   return (
     <div className="animate-fadeIn">
@@ -46,7 +63,10 @@ function ResearchProgress({ sections, isComplete }: ResearchProgressProps) {
       <div className="mb-6">
         <SimulatedProgressBar 
           ref={progressBarRef} 
-          onComplete={() => setCurrentStep(3)}
+          onProgress={setProgressValue}
+          onComplete={() => {
+            // currentStep is driven by isComplete prop via useMemo
+          }}
         />
       </div>
 
@@ -62,15 +82,16 @@ function ResearchProgress({ sections, isComplete }: ResearchProgressProps) {
                       : i === currentStep
                       ? 'bg-gradient-to-tr from-[#4285f4] to-[#9b51e0] text-white ring-4 ring-accent/20'
                       : 'bg-bg-tertiary text-text-tertiary'
-                  }`}
-                >
+                  }`}>
                   {i < currentStep ? <CheckCircle2 className="w-5 h-5" /> : <step.icon className="w-5 h-5" />}
                 </div>
                 <span className={`text-xs font-semibold mt-2.5 ${i <= currentStep ? 'text-text-primary' : 'text-text-tertiary'}`}>
                   {step.label}
                 </span>
               </div>
-              {i < steps.length - 1 && <div className={`flex-1 h-0.5 mx-4 mt-[-1.5rem] transition-colors duration-500 ${i < currentStep ? 'bg-success' : 'bg-border-primary'}`} />}
+              {i < steps.length - 1 && (
+                <div className={`flex-1 h-0.5 mx-4 mt-[-1.5rem] transition-colors duration-500 ${i < currentStep ? 'bg-success' : 'bg-border-primary'}`} />
+              )}
             </div>
           ))}
         </div>
@@ -111,6 +132,12 @@ function ResearchProgress({ sections, isComplete }: ResearchProgressProps) {
               Synthesizing final report...
             </div>
           )}
+          {currentStep === 2 && sections.length > 0 && (
+            <div className="flex items-center gap-2.5 text-xs text-text-tertiary animate-fadeIn gemini-card p-3.5">
+              <span className="w-2 h-2 rounded-full bg-[#f2702f] animate-pulse" />
+              Compiling report insights...
+            </div>
+          )}
           {isComplete && (
             <div className="flex items-center gap-2.5 text-xs text-success font-semibold animate-fadeIn gemini-card p-3.5">
               <CheckCircle2 className="w-4 h-4 shrink-0" />
@@ -130,7 +157,7 @@ function ResearchProgress({ sections, isComplete }: ResearchProgressProps) {
                 <span className="text-xs font-bold text-text-primary">Section {i + 1}</span>
               </div>
               <p className="text-xs text-text-secondary line-clamp-2 leading-relaxed font-medium">
-                {section.replace(/^##\s+/, '').split('\n')[0]}
+                {section.replace(/^##\s+/, "").split("\n")[0]}
               </p>
             </div>
           ))}

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { FileText, Copy, Download, Check, RotateCcw } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -31,6 +31,19 @@ function FinalReport({ report, sections, topic, onReset, analysts }: FinalReport
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
+
+  // Extract the title from the first markdown heading line (e.g. "# Title")
+  // and strip ALL leading '#' markers (handles doubled/LLM-emitted hashes such
+  // as "# # Title" or "## Title") so the title never renders a literal '#'.
+  const { reportTitle, reportBody } = useMemo(() => {
+    const titleMatch = report.match(/^#{1,6}(?:\s*#*)?\s+(.+)$/m);
+    if (titleMatch) {
+      const title = titleMatch[1].replace(/^#+\s*/, '').trim();
+      const body = report.slice(titleMatch[0].length).replace(/^\n+/, '');
+      return { reportTitle: title, reportBody: body };
+    }
+    return { reportTitle: null, reportBody: report };
+  }, [report]);
 
   return (
     <div className="animate-fadeIn">
@@ -94,10 +107,19 @@ function FinalReport({ report, sections, topic, onReset, analysts }: FinalReport
         </div>
       </div>
 
+      {/* Extracted title displayed as a styled H1 (no literal #) */}
+      {reportTitle && (
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold text-text-primary tracking-tight leading-tight">
+            {reportTitle}
+          </h1>
+        </div>
+      )}
+
       <div className="gemini-card p-6 md:p-8">
         <div className="markdown-body">
           <ReactMarkdown remarkPlugins={[remarkGfm]}>
-            {report}
+            {reportBody}
           </ReactMarkdown>
         </div>
       </div>
@@ -115,7 +137,7 @@ function FinalReport({ report, sections, topic, onReset, analysts }: FinalReport
               >
                 <summary className="px-5 py-3.5 cursor-pointer text-sm font-semibold text-text-primary hover:bg-surface-hover transition-colors flex items-center gap-2 [&::-webkit-details-marker]:hidden">
                   <span className="w-5 h-5 rounded-full bg-accent-light flex items-center justify-center shrink-0">
-                    <span className="text-xs font-bold bg-gradient-to-r from-[#4285f4] to-[#9b51e0] bg-clip-text text-transparent">{i + 1}</span>
+                    <span className="text-xs font-bold bg-gradient-to-r from-[#4285f4] to-[#9b51e5] bg-clip-text text-transparent">{i + 1}</span>
                   </span>
                   {section.replace(/^##\s+/, '').split('\n')[0] || `Perspective ${i + 1}`}
                 </summary>

@@ -3,6 +3,7 @@ import { useSimulatedProgress } from '../hooks/useSimulatedProgress';
 
 interface SimulatedProgressBarProps {
   onComplete?: () => void;
+  onProgress?: (progress: number) => void;
   estimatedDurationMs?: number;
 }
 
@@ -12,6 +13,7 @@ export interface SimulatedProgressBarHandle {
 
 export function SimulatedProgressBar({ 
   onComplete, 
+  onProgress,
   estimatedDurationMs 
 }: SimulatedProgressBarProps, ref: any) {
   const { progress, statusText, start, reset, complete } = useSimulatedProgress(estimatedDurationMs);
@@ -30,6 +32,13 @@ export function SimulatedProgressBar({
       reset();
     };
   }, []);
+
+  // Notify parent of progress changes
+  useEffect(() => {
+    if (onProgress) {
+      onProgress(progress);
+    }
+  }, [progress, onProgress]);
 
   // Listen for transitionend on progress fill to sync with visual completion
   useEffect(() => {

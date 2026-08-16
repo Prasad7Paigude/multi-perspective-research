@@ -19,6 +19,12 @@ function App() {
     reset,
   } = useResearch();
 
+  // Real completion is driven solely by the backend `final_report` SSE event
+  // (reflected here as status === 'complete'). During the run the stage
+  // indicator advances from the live simulated progress; only genuine report
+  // arrival flips it to the all-complete state.
+  const isComplete = status === 'complete';
+
   return (
     <div className="min-h-screen bg-bg-primary flex flex-col relative z-0">
       {/* Gemini Drifting Blobs Background */}
@@ -63,10 +69,10 @@ function App() {
           />
         )}
 
-        {status === 'interviewing' && (
+        {(status === 'interviewing' || (status === 'complete' && !finalReport)) && (
           <ResearchProgress
             sections={sections}
-            isComplete={false}
+            isComplete={isComplete}
           />
         )}
 
