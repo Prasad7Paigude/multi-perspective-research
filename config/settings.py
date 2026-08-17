@@ -14,6 +14,7 @@ load_dotenv(dotenv_path)
 # ============================================================
 # Named constants for easy tuning after test runs
 OLLAMA_MODEL = "qwen2.5:3b"
+TEMPERATURE = 0.3
 REPEAT_PENALTY = 1.2
 REPEAT_LAST_N = 128
 
@@ -65,7 +66,7 @@ else:  # Default to Ollama
     _check_ollama_model(OLLAMA_MODEL)
     llm = ChatOllama(
         model=OLLAMA_MODEL,
-        temperature=0,
+        temperature=TEMPERATURE,
         num_predict=4096,
         repeat_penalty=REPEAT_PENALTY,
         repeat_last_n=REPEAT_LAST_N

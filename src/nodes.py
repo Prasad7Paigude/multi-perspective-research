@@ -311,39 +311,101 @@ def write_conclusion(state: ResearchGraphState):
 
 def finalize_report(state: ResearchGraphState):
     import re
-    
+
     content = state["content"]
     if content.startswith("## Insights"):
         content = content[len("## Insights"):].lstrip()
-    if "## Sources" in content:
-        try:
-            content, sources = content.split("\n## Sources\n")
-        except:
-            sources = None
-    else:
-        sources = None
 
+    # Extract source entries ONLY from "## Sources" or "### Sources" sections,
+    # not from inline citations in the body text.
+    source_section_pattern = re.compile(
+        r'###?\s+Sources\s*\n(.*?)(?=\n## |\Z)', re.DOTALL
+    )
+    source_sections = source_section_pattern.findall(content)
+
+    placeholder_phrases = [
+        "source not provided", "source not found",
+        "not provided in the given", "not found in", "no source",
+        "document not explicitly cited", "source #", "<document",
+        "document source", "not relevant",
+    ]
+
+    # Parse source entries from source sections only
+    # A valid source entry looks like: [N] <url> or [N] Author, Title, etc.
+    unique_sources = []
+    num_map = {}  # old citation number -> new citation number
+    seen_texts = set()
+
+    source_entry_pattern = re.compile(r'\[(\d+)\]\s+(.+)')
+
+    for sec in source_sections:
+        for num_str, text in source_entry_pattern.findall(sec):
+            text = text.strip()
+            text_lower = text.lower()
+            is_placeholder = any(p in text_lower for p in placeholder_phrases)
+            # Skip entries that look like fragments (too short or end with ) or ,)
+            if not text or is_placeholder:
+                continue
+            if text_lower in seen_texts:
+                continue
+            # Skip very short entries that are likely citation artifacts
+            if len(text) < 10:
+                continue
+            # Skip entries that are just closing punctuation
+            if re.match(r'^[\),\]\s]+', text):
+                continue
+            seen_texts.add(text_lower)
+            old_num = int(num_str)
+            new_num = len(unique_sources) + 1
+            num_map[old_num] = new_num
+            unique_sources.append(text)
+
+    # Strip ALL source sections from the body content
+    body_content = re.sub(r'###?\s+Sources\s*\n.*?(?=\n## |\Z)', '', content, flags=re.DOTALL)
+
+    # Now remap inline citations in the body to the new numbering
+    def remap_citation(match):
+        old_num = int(match.group(1))
+        if old_num in num_map:
+            return f"[{num_map[old_num]}]"
+        return ""
+
+    body_content = re.sub(r'\[(\d+)\]', remap_citation, body_content)
+
+    # Clean up orphaned parentheses left by removed citations
+    body_content = re.sub(r'\(\s*\)', '', body_content)
+    body_content = re.sub(r'\(\s*,', '(', body_content)
+    body_content = re.sub(r',\s*\)', ')', body_content)
+    body_content = re.sub(r'\s{3,}', '  ', body_content)
+
+    # Fix common capitalization artifacts
+    for _typo in ["AGentic", "AGetic", "AGenti"]:
+        body_content = re.sub(_typo, "Agentic", body_content)
+    body_content = re.sub(r'agnetic-ai', 'agentic-ai', body_content)
+
+    # Process introduction
     introduction = state["introduction"]
-    # Normalize the introduction title: the intro prompt instructs the LLM to use a
-    # '# ' heading for the title, which LLMs frequently double-up into '# # Title'.
-    # Collapse any leading run of '#' characters into a single proper heading so
-    # the report does not render a literal '#' in the title.
     introduction = re.sub(r"^(#+)\s*(#+\s*)?", "# ", introduction, count=1) if introduction.startswith("#") else introduction
+    for _typo in ["AGentic", "AGetic", "AGenti"]:
+        introduction = re.sub(_typo, "Agentic", introduction)
+        introduction = re.sub(r'agnetic-ai', 'agentic-ai', introduction)
+
+    # Process conclusion
+    conclusion = state["conclusion"]
+    for _typo in ["AGentic", "AGetic", "AGenti"]:
+        conclusion = re.sub(_typo, "Agentic", conclusion)
+        conclusion = re.sub(r'agnetic-ai', 'agentic-ai', conclusion)
+
+    # Build the final report
+    formatted_sources = "\n\n".join(
+        f"[{i+1}] {src}" for i, src in enumerate(unique_sources)
+    )
 
     final_report = (
         introduction + "\n\n---\n\n" +
-        content + "\n\n---\n\n" +
-        state["conclusion"]
+        body_content + "\n\n---\n\n" +
+        conclusion
     )
-    if sources is not None:
-        # Format sources with proper markdown paragraph breaks
-        # Split on [n] pattern to separate individual sources
-        source_entries = re.findall(r'(\[\d+\] \S[^\[]*)', sources)
-        if source_entries:
-            # Join with double newlines for proper markdown paragraph separation
-            formatted_sources = "\n\n".join([s.strip() for s in source_entries if s.strip()])
-        else:
-            # Fallback: ensure any existing newlines are double newlines
-            formatted_sources = sources.replace("\n", "\n\n")
-        final_report += "\n\n## Sources\n" + formatted_sources
+    final_report += "\n\n## Sources\n" + formatted_sources
+
     return {"final_report": final_report}

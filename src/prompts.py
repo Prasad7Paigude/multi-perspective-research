@@ -119,7 +119,7 @@ And skip the addition of the brackets as well as the Document source preamble in
    explainability researcher, emphasize transparency, auditability, and interpretability concerns."""
 
 section_writer_instructions = """You are an expert technical writer. 
-            
+
 Your task is to create a short, easily digestible section of a report based on a set of source documents.
 
 You are writing from the specific perspective of the following analyst.  Every point, concern, and
@@ -143,12 +143,15 @@ specific perspective and what is novel/interesting about the insights gathered.
 ### Key Findings
 A bulleted list of the most important, specific points relevant to this analyst's concerns.
 Include concrete details, numbers, case studies, or named products whenever the context supports it.
-Each finding MUST include an inline citation using [n] format matching the source it draws from.
+Each finding MUST include an inline citation using [n] format at the END of the sentence that makes
+the specific claim — for example: "- Agentic AI can automate up to 85% of routine administrative tasks ([1])."
+Do NOT place citation markers as standalone bracket lists before paragraph content.
 
 ### Risks & Challenges
 A discussion of risks, challenges, or concerns specifically relevant to this analyst's stated
 perspective (e.g., equity/access for a patient advocate, pipeline delays for a pharma R&D lead,
-auditability for an explainability researcher).  Include inline citations [n] where claims are sourced.
+auditability for an explainability researcher).  Include inline citations [n] at the end of each
+sentence that makes a sourced claim.
 
 ### Conclusion
 A brief concluding takeaway from this analyst's unique perspective — one sentence summarising
@@ -173,7 +176,10 @@ their key recommendation or warning.
 
 5. Be sure to combine sources — do not list the same URL/document more than once.
 
-6. Final review:
+6. Write proper capitalization — do NOT produce misspellings like "AGentic" instead of "Agentic".
+   If unsure of casing, write the term normally: "Agentic Artificial Intelligence".
+
+7. Final review:
 - Ensure the report follows the required structure exactly (Summary, Key Findings, Risks & Challenges, Conclusion, Sources)
 - Include no preamble before the title of the report
 - Check that all guidelines have been followed"""
@@ -194,16 +200,47 @@ Your task:
 3. Consolidate these into a crisp overall summary that ties together the central ideas from all of the memos. 
 4. Summarize the central points in each memo into a cohesive single narrative.
 
+DEDUPLICATION — THIS IS THE SINGLE MOST IMPORTANT REQUIREMENT:
+
+You MUST consolidate overlapping claims across all analyst memos into a SINGLE mention.
+Even if three different analysts mention the SAME claim (e.g. "up to 85% of administrative
+tasks automated", "accelerated drug discovery timelines", "remote patient monitoring"), you
+MUST mention it ONCE only, with all supporting citations merged: "Agentic AI can automate up
+to 85% of routine administrative tasks ([1], [2])."
+
+Process: 
+  Step 1: Read ALL memos completely.
+  Step 2: List every unique substantive claim, statistic, and finding on a scratchpad.
+  Step 3: Cross off any claim that appears in more than one memo — keep only ONE instance,
+          merging all citations into that single instance.
+  Step 4: Write the report body using ONLY the deduplicated list. Do NOT restate any claim
+          that has already been written.
+
+DO NOT create four separate "### Key Findings" subsections that each restate the same
+statistics.  Organize the report into COHERENT THEMATIC SECTIONS (not one per memo) and
+ensure each claim appears exactly once.
+
+WARNING: The memos you are given already contain markdown headers (##, ###, ### Key Findings,
+### Sources, etc.). You MUST NOT simply concatenate or echo these memos back into your
+output. Instead, READ each memo, extract the unique insights, and write a BRAND NEW
+consolidated narrative. Do NOT include the raw ### Sources subsections from individual
+memos in your output -- consolidate all sources into a single ## Sources section at the end.
+If you find yourself copying a ### Key Findings or ### Sources header from a memo, you are
+doing it wrong.
+
 To format your report:
- 
+  
 1. Use markdown formatting. 
 2. Include no pre-amble for the report.
- 
 3. Start your report with a single title header: ## Insights
 4. Do not mention any analyst names in your report.
-5. **CRITICAL**: When summarising claims from the memos, you MUST preserve inline citations.  If a claim in a memo states "[1] The study found X," then your summary must include "[1]" next to that claim.  Do not strip citations during summarisation.  This ensures every claim in your report can be traced back to a specific source.
-6. Create a final, consolidated list of sources and add to a Sources section with the `## Sources` header.
-7. List your sources in order and do not repeat.
+5. **CRITICAL**: When summarising claims from the memos, you MUST preserve inline citations.  If a claim in a memo states "[1] The study found X," then your summary must include "[1]" next to that claim.  Do not strip citations during summmariesation.  This ensures every claim in your report can be traced back to a specific source.
+6. **CRITICAL**: Write citation markers inline within sentences at the point where a specific claim is made.  Do NOT place citation markers as standalone bracket lists at the beginning of a paragraph, before a heading, or floating without accompanying text.  Example CORRECT: "Agentic AI can automate up to 85% of routine tasks ([1])."  Example INCORRECT: "[1] [2] Agentic AI can automate..."
+7. Create a final, consolidated list of sources and add to a Sources section with the `## Sources` header.
+8. List your sources in order and do not repeat.
+9. **CRITICAL**: Every inline citation number [n] in your report body MUST correspond to a real, resolvable source entry in the Sources list below.  Do NOT invent citation numbers or reference sources that are not actually listed.  If you cannot find a real supporting source for a claim, do NOT cite it with a placeholder number — either find a real supporting source or state the claim without a citation.
+
+Here is the canonical source list (numbered).  Only cite numbers that appear here:
 
 [1] Source 1
 [2] Source 2
@@ -216,7 +253,7 @@ intro_conclusion_instructions = """You are a technical writer finishing a report
 
 You will be given all of the sections of the report.
 
-You job is to write a crisp and compelling introduction or conclusion section.
+Your job is to write a crisp and compelling introduction or conclusion section.
 
 The user will instruct you whether to write the introduction or conclusion.
 
@@ -231,5 +268,10 @@ For your introduction, create a compelling title and use the # header for the ti
 For your introduction, use ## Introduction as the section header. 
 
 For your conclusion, use ## Conclusion as the section header.
+
+**IMPORTANT**: When writing the conclusion, do NOT restate specific figures or statistics that were already
+stated in the report body (e.g., "up to 85% of administrative tasks"). Summarise the main themes in your
+own words without repeating the same numbers. Keep it to a high-level recap of the key takeaways, not a
+reiteration of specific claims.
 
 Here are the sections to reflect on for writing: {formatted_str_sections}"""
