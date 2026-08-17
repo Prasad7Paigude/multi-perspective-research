@@ -10,7 +10,7 @@ from src.state import (
 )
 from src.prompts import (
     analyst_instructions, question_instructions, search_instructions,
-    answer_instructions, section_writer_instructions,
+    answer_instructions, section_writer_instructions, format_persona,
     report_writer_instructions, intro_conclusion_instructions
 )
 from utils.tools import tavily_search, WikipediaLoader
@@ -96,25 +96,46 @@ def generate_question(state: InterviewState):
     analyst = state["analyst"]
     messages = state["messages"]
 
-    system_message = question_instructions.format(goals=analyst.persona)
+    system_message = question_instructions.format(persona=format_persona(analyst))
     question = llm.invoke([SystemMessage(content=system_message)] + messages)
 
     return {"messages": [question]}
 
 
 def _extract_search_query(state: InterviewState) -> str:
-    """Try to extract a structured search query, fallback to raw message text."""
+    """Try to extract a structured search query, fallback to raw message text.
+
+    The analyst's persona is injected into the search prompt so that the
+    generated query reflects the analyst's specific perspective (Fix 5:
+    improve search query diversity per analyst).
+    """
+    analyst = state.get("analyst")
+    persona_str = format_persona(analyst) if analyst else "General analyst"
+    query = None
     try:
         structured_llm = llm.with_structured_output(SearchQuery)
-        search_query = structured_llm.invoke([search_instructions] + state['messages'])
+        search_prompt = search_instructions.content.format(persona=persona_str)
+        search_query = structured_llm.invoke(
+            [SystemMessage(content=search_prompt)] + state['messages']
+        )
         if search_query and search_query.search_query:
-            return search_query.search_query
+            query = search_query.search_query
     except (json.JSONDecodeError, Exception):
         pass
-    
-    # Fallback: use last message content
-    last_msg = state['messages'][-1].content if state['messages'] else ""
-    return last_msg[:200] if last_msg else "trending topics in AI"
+
+    if query is None:
+        # Fallback: use last message content
+        last_msg = state['messages'][-1].content if state['messages'] else ""
+        query = last_msg[:200] if last_msg else "trending topics in AI"
+
+    # Log the query for observability / verification that different
+    # analysts produce different searches
+    if analyst:
+        print(f"  [SEARCH] Analyst '{analyst.name}' query: '{query}'")
+    else:
+        print(f"  [SEARCH] Query: '{query}'")
+
+    return query
 
 
 def search_web(state: InterviewState):
@@ -167,7 +188,9 @@ def generate_answer(state: InterviewState):
     messages = state["messages"]
     context = state["context"]
 
-    system_message = answer_instructions.format(goals=analyst.persona, context=context)
+    system_message = answer_instructions.format(
+        persona=format_persona(analyst), context=context
+    )
     answer = llm.invoke([SystemMessage(content=system_message)] + messages)
 
     answer.name = "expert"
@@ -208,10 +231,12 @@ def write_section(state: InterviewState):
     context = state["context"]
     analyst = state["analyst"]
 
-    system_message = section_writer_instructions.format(focus=analyst.description)
+    system_message = section_writer_instructions.format(
+        persona=format_persona(analyst)
+    )
     section = llm.invoke(
         [SystemMessage(content=system_message)] +
-        [HumanMessage(content=f"Use this source to write your section: {context}")]
+        [HumanMessage(content=f"Use this source to write your section: {context}\n\nInterview transcript:\n{interview}")]
     )
 
     return {"sections": [section.content]}

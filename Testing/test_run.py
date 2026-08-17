@@ -2,8 +2,9 @@
 Research Assistant - Test Script
 ==================================
 Test with:
-  Topic: "Trending Topics in AI"
-  Human response at interruption: "Have one persona from Google R&D Team"
+  Topic: "Impact of agentic AI on medical industry"
+  3 analysts, 2 interview rounds
+  Human feedback: None (use AI-generated analysts directly)
 
 This script does NOT modify any existing code files. It reuses the
 existing graph, nodes, and state from the project.
@@ -28,11 +29,12 @@ from config.settings import LLM_PROVIDER
 # ============================================================
 # Test Configuration
 # ============================================================
-TOPIC = "Trending Topics in AI"
-HUMAN_FEEDBACK = "Have one persona from Google R&D Team"
+TOPIC = "Impact of agentic AI on medical industry"
+HUMAN_FEEDBACK = None
 MAX_ANALYSTS = 3
-PIPELINE_ANALYSTS = 1
+PIPELINE_ANALYSTS = 3
 INTERVIEW_TURNS = 2
+LLM_MODEL = "qwen2.5:3b"
 
 # ============================================================
 # Test Execution
@@ -218,7 +220,8 @@ if test_passed:
         research_thread = {"configurable": {"thread_id": "test_research_001"}}
 
         for event in research_graph.stream(
-            {"topic": TOPIC, "max_analysts": PIPELINE_ANALYSTS},
+            {"topic": TOPIC, "max_analysts": PIPELINE_ANALYSTS,
+             "analysts": approved_analysts},
             research_thread,
             stream_mode="values"
         ):
@@ -291,7 +294,7 @@ if LLM_PROVIDER == "groq":
     llm_model = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
 elif LLM_PROVIDER == "ollama":
     llm_provider = "Ollama"
-    llm_model = "llama3.2:3b"
+    llm_model = LLM_MODEL
 elif LLM_PROVIDER == "gemini":
     llm_provider = "Gemini"
     llm_model = "gemini-1.5-pro"
@@ -403,11 +406,11 @@ report_content += f"""
 
 ## Key Observations
 
-- **Graph Initialization:** {"✅ Passed" if any(e["step"] == "Graph Initialization" and e["status"] == "PASS" for e in log) else "❌ Failed"}
-- **Analyst Generation:** {"✅ Passed" if any("Analyst" in e["step"] and e["status"] == "PASS" for e in log) else "❌ Failed"}
-- **Human Feedback Integration:** {"✅ Passed" if any("Feedback" in e["step"] and e["status"] == "PASS" for e in log) else "❌ Failed"}
-- **Interview Execution:** {"✅ Passed" if any("Interview" in e["step"] and e["status"] == "PASS" for e in log) else "❌ Failed/Not Run"}
-- **Research Pipeline:** {"✅ Passed" if any("Research Pipeline" in e["step"] and e["status"] == "PASS" for e in log) else "❌ Failed/Not Run"}
+- **Graph Initialization:** {"PASSED" if any(e["step"] == "Graph Initialization" and e["status"] == "PASS" for e in log) else "FAILED"}
+- **Analyst Generation:** {"PASSED" if any("Analyst" in e["step"] and e["status"] == "PASS" for e in log) else "FAILED"}
+- **Human Feedback Integration:** {"PASSED" if any("Feedback" in e["step"] and e["status"] == "PASS" for e in log) else "FAILED"}
+- **Interview Execution:** {"PASSED" if any("Interview" in e["step"] and e["status"] == "PASS" for e in log) else "FAILED/Not Run"}
+- **Research Pipeline:** {"PASSED" if any("Research Pipeline" in e["step"] and e["status"] == "PASS" for e in log) else "FAILED/Not Run"}
 
 ## Configuration Details
 
@@ -426,5 +429,5 @@ report_content += f"""
 with open("report.md", "w", encoding="utf-8") as f:
     f.write(report_content)
 
-print("\n✅ report.md has been generated.")
+print("\n[OK] report.md has been generated.")
 print(f"   Overall test status: {'PASSED' if test_passed else 'FAILED'}")

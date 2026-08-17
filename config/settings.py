@@ -1,4 +1,5 @@
 import os
+import subprocess
 from pathlib import Path
 from dotenv import load_dotenv
 from langchain_ollama import ChatOllama
@@ -7,6 +8,34 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 
 dotenv_path = Path(__file__).resolve().parent.parent / '.env'
 load_dotenv(dotenv_path)
+
+# ============================================================
+# Ollama Configuration
+# ============================================================
+# Named constants for easy tuning after test runs
+OLLAMA_MODEL = "qwen2.5:3b"
+REPEAT_PENALTY = 1.2
+REPEAT_LAST_N = 128
+
+def _check_ollama_model(model_name: str) -> None:
+    """Fail-fast check: raise a clear error if the given Ollama model is not
+    present locally.  We do NOT auto-pull (2 GB+ download mid-run is bad
+    behaviour) and do NOT silently fall back (defeats the purpose)."""
+    try:
+        result = subprocess.run(
+            ["ollama", "list"], capture_output=True, text=True, timeout=15
+        )
+        if model_name not in result.stdout:
+            raise ValueError(
+                f"Ollama model '{model_name}' is not installed locally.\n"
+                f"Please run:  ollama pull {model_name}\n"
+                f"Then retry."
+            )
+    except FileNotFoundError:
+        raise ValueError(
+            "Ollama executable not found.\n"
+            "Please install Ollama (https://ollama.ai) and ensure it is running."
+        )
 
 
 # LLM Provider configuration
@@ -33,8 +62,11 @@ elif LLM_PROVIDER == "gemini":
         api_key=gemini_api_key
     )
 else:  # Default to Ollama
+    _check_ollama_model(OLLAMA_MODEL)
     llm = ChatOllama(
-        model="llama3.2:3b",
+        model=OLLAMA_MODEL,
         temperature=0,
-        num_predict=4096
+        num_predict=4096,
+        repeat_penalty=REPEAT_PENALTY,
+        repeat_last_n=REPEAT_LAST_N
     )
