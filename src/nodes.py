@@ -483,6 +483,23 @@ def finalize_report(state: ResearchGraphState):
                 sec = sec.replace(sec_src, cleaned_src)
         cleaned_sections.append(sec)
 
+    # ---------------------------------------------------------------
+    # Deterministic backstop BEFORE assembly: strip stray "Conclusion"
+    # headings from the body content. If the model ignored the "###
+    # Conclusion -> ### Takeaways" rename in section_writer_instructions,
+    # it may emit "### Conclusion" (or any-level) inside an analyst section
+    # that ends up in the body. We remove those stray heading lines
+    # (preserving the text content) so only the intended "## Conclusion"
+    # from the conclusion section remains in the final report.
+    # ---------------------------------------------------------------
+    body_content = re.sub(
+        r'^[ \t]*#{1,6}\s+Conclusion[ \t]*\n',
+        '',
+        body_content,
+        flags=re.IGNORECASE | re.MULTILINE
+    )
+    body_content = re.sub(r'\n{3,}', '\n\n', body_content)
+
     # Build the final report
     formatted_sources = "\n".join(
         f"[{i+1}] {src}" for i, src in enumerate(unique_sources)
@@ -494,5 +511,19 @@ def finalize_report(state: ResearchGraphState):
         conclusion
     )
     final_report += "\n\n## Sources\n" + formatted_sources
+
+    # Final sanity check: after assembly, ensure there is exactly one
+    # "## Conclusion" heading. If the model also added stray Conclusion
+    # headings in the body (which we stripped above), or if the conclusion
+    # section itself got a duplicate, keep only the last occurrence.
+    conclusion_matches = list(re.finditer(
+        r'^##\s+Conclusion\s*$', final_report,
+        re.IGNORECASE | re.MULTILINE
+    ))
+    if len(conclusion_matches) > 1:
+        # Remove all but the last
+        for match in reversed(conclusion_matches[:-1]):
+            final_report = final_report[:match.start()] + final_report[match.end():]
+        final_report = re.sub(r'\n{3,}', '\n\n', final_report).strip()
 
     return {"final_report": final_report, "sections": cleaned_sections}
