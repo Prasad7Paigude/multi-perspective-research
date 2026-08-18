@@ -243,9 +243,9 @@ Target around 100 words, crisply previewing (for introduction) or recapping (for
 
 Use markdown formatting. 
 
-For your introduction, create a compelling title and use the # header for the title.
+For your introduction, create a compelling title based on the research topic and use the # header for the title. The title must reflect the actual topic (e.g., # Impact of Computer Vision on the Automotive Industry), NOT the word "Introduction".
 
-For your introduction, use ## Introduction as the section header. 
+For your introduction, use ## Introduction as the section header for the body of your introduction that follows the title. 
 
 For your conclusion, use ## Conclusion as the section header.
 

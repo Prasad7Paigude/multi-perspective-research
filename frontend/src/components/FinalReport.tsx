@@ -11,6 +11,100 @@ interface FinalReportProps {
   analysts: any[];
 }
 
+/**
+ * Detects the "## Sources" (or "### Sources") section in a markdown string,
+ * converts [N] entries into proper markdown list items, and truncates long
+ * URLs in the display text while keeping the full URL as the link target.
+ *
+ * The result is a markdown string where each source entry is a list item
+ * with a clickable link. Long URLs are displayed with "..." truncation.
+ */
+function formatSourcesForMarkdown(content: string): string {
+  if (!content) return content;
+
+  // Match a Sources heading (## or ###) and capture everything until the next
+  // heading at the same or higher level, or end of string.
+  const sourceSectionPattern = /(#{2,3}\s+Sources\s*\n)([\s\S]*?)(?=\n#{1,3}\s+|$)/i;
+
+  const match = content.match(sourceSectionPattern);
+  if (!match) return content;
+
+  const header = match[1];
+  const body = match[2];
+
+  // Parse individual [N] source entries - one per line or separated by [N] markers
+  // The regex matches [N] followed by text up to the next [M] marker or end of line
+  const entryPattern = /\[(\d+)\]\s+(.+?)(?=\s*\[\d+\]|\n|$)/g;
+  const entries: Array<{ num: string; text: string }> = [];
+  let entryMatch;
+  while ((entryMatch = entryPattern.exec(body)) !== null) {
+    const num = entryMatch[1];
+    const text = entryMatch[2].trim();
+    if (text) {
+      entries.push({ num, text });
+    }
+  }
+
+  if (entries.length === 0) return content;
+
+  // Rebuild the sources section as a markdown list with truncated links
+  const MAX_DISPLAY_LENGTH = 80; // Truncate URL display text to 80 chars
+  const listItems = entries.map(({ num, text }) => {
+    return `- [${num}] ${truncateUrlDisplay(text, MAX_DISPLAY_LENGTH)}`;
+  });
+
+  const newSection = header + listItems.join('\n') + '\n';
+
+  const matchIndex = match.index ?? 0;
+  return content.slice(0, matchIndex) + newSection + content.slice(matchIndex + match[0].length);
+}
+
+/**
+ * If the text contains a URL, returns a markdown link where the display text
+ * is truncated with "..." if it exceeds the max length, but the full URL is
+ * preserved as the href. If no URL is found, returns the original text.
+ */
+function truncateUrlDisplay(text: string, maxLength: number): string {
+  // Try to extract a URL from the text
+  const urlMatch = text.match(/https?:\/\/[^\s]+/);
+  if (!urlMatch) {
+    // No URL found — just truncate with ellipsis if too long
+    if (text.length > maxLength) {
+      return text.slice(0, maxLength) + '...';
+    }
+    return escapeMarkdownLink(text);
+  }
+
+  const fullUrl = urlMatch[0];
+  const urlIndex = urlMatch.index ?? 0;
+  const restOfText = text.slice(0, urlIndex) + text.slice(urlIndex + fullUrl.length);
+
+  // Truncate the URL for display if it's long
+  let displayUrl = fullUrl;
+  if (fullUrl.length > maxLength) {
+    displayUrl = fullUrl.slice(0, maxLength) + '...';
+  }
+
+  // If there's additional text before/after the URL, include it in the display
+  const displayText = (restOfText.trim() + ' ' + displayUrl).trim();
+  const cleanedDisplay = displayText.replace(/\s+/g, ' ');
+
+  // Return as a markdown link: [cleanedDisplay](fullUrl)
+  // Escape any ] in the display text to avoid breaking the markdown link
+  const escapedDisplay = cleanedDisplay.replace(/\]/g, '\\]');
+  // Escape parentheses in URL portion to avoid breaking markdown links
+  const escapedUrl = fullUrl.replace(/[()]/g, m => encodeURIComponent(m));
+
+  return `[${escapedDisplay}](${escapedUrl})`;
+}
+
+/**
+ * Escapes characters that could break markdown link syntax.
+ */
+function escapeMarkdownLink(text: string): string {
+  return text.replace(/\]/g, '\\]').replace(/\[/g, '\\[');
+}
+
 function FinalReport({ report, sections, topic, onReset, analysts }: FinalReportProps) {
   const [copied, setCopied] = useState(false);
 
@@ -35,14 +129,17 @@ function FinalReport({ report, sections, topic, onReset, analysts }: FinalReport
   // Extract the title from the first markdown heading line (e.g. "# Title")
   // and strip ALL leading '#' markers (handles doubled/LLM-emitted hashes such
   // as "# # Title" or "## Title") so the title never renders a literal '#'.
+  // Also format the Sources section as proper markdown list items with
+  // truncated URL display text.
   const { reportTitle, reportBody } = useMemo(() => {
     const titleMatch = report.match(/^#{1,6}(?:\s*#*)?\s+(.+)$/m);
     if (titleMatch) {
       const title = titleMatch[1].replace(/^#+\s*/, '').trim();
       const body = report.slice(titleMatch[0].length).replace(/^\n+/, '');
-      return { reportTitle: title, reportBody: body };
+      const formattedBody = formatSourcesForMarkdown(body);
+      return { reportTitle: title, reportBody: formattedBody };
     }
-    return { reportTitle: null, reportBody: report };
+    return { reportTitle: null, reportBody: formatSourcesForMarkdown(report) };
   }, [report]);
 
   return (
@@ -144,7 +241,7 @@ function FinalReport({ report, sections, topic, onReset, analysts }: FinalReport
                 <div className="px-5 pb-4 border-t border-border-primary">
                   <div className="pt-4 markdown-body text-sm">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                      {section}
+                      {formatSourcesForMarkdown(section)}
                     </ReactMarkdown>
                   </div>
                 </div>

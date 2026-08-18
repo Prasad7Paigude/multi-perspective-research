@@ -294,6 +294,81 @@ def extract_clean_sources(text: str) -> str:
     return text
 
 
+# Placeholders that indicate a source entry is not a real source
+PLACEHOLDER_PHRASES = [
+    "source not provided", "source not found",
+    "not provided in the given", "not found in", "no source",
+    "document not explicitly cited", "source #", "<document",
+    "document source", "not relevant",
+]
+
+
+def format_sources_list(text: str) -> str:
+    """Ensure source entries are formatted as a proper list, one per line.
+
+    Handles cases where the LLM emits sources in continuous/paragraph form
+    (e.g., all on one line: ``[1] url1, title1 [2] url2, title2``) by splitting
+    them into individual entries.  Supports both ``[N]`` numbered entries and
+    bare URL entries with optional titles.
+    """
+    if not text or not text.strip():
+        return text
+
+    # Clean any remaining <Document> tags or JSON artifacts (idempotent)
+    text = extract_clean_sources(text)
+    text = re.sub(r'<[^>]+>', '', text)
+    text = re.sub(r'\{[^{}]*?\}', '', text)
+
+    # Insert a newline before every ``[N]`` marker that is NOT already at
+    # the start of a line.  This normalises continuous/paragraph-form
+    # sources into one-entry-per-line format.
+    text = re.sub(r'(?<=\S)\s+\[(\d+)\]\s+', r'\n[\1] ', text)
+
+    # Parse entries — one ``[N]`` per line
+    entry_pattern = re.compile(r'^\[(\d+)\]\s+(.+)$', re.MULTILINE)
+    matches = entry_pattern.findall(text)
+
+    if matches:
+        sources = []
+        for num, content in matches:
+            content = content.strip()
+            # Take only the first line in case of embedded newlines
+            content = content.split('\n')[0].strip()
+            # Strip leading/trailing punctuation
+            content = re.sub(r'^[.,;:]+', '', content)
+            content = re.sub(r'[.,;:]+$', '', content)
+            if not content or len(content) < 5:
+                continue
+            content_lower = content.lower()
+            if any(p in content_lower for p in PLACEHOLDER_PHRASES):
+                continue
+            sources.append(f'[{num}] {content}')
+        if sources:
+            return '\n'.join(sources)
+
+    # Fallback: extract bare URLs (no [N] numbering present)
+    urls = re.findall(r'https?://[^\s,\n;]+', text)
+    if urls:
+        return '\n'.join(f'[{i+1}] {url}' for i, url in enumerate(urls))
+
+    return text
+
+
+def format_section_sources(section_text: str) -> str:
+    """Find the ``### Sources`` subsection within a section and ensure its
+    entries are formatted as a proper one-per-line list."""
+    sec_source_pattern = re.compile(
+        r'(###\s+Sources\s*\n)(.*?)(?=\n###|\n##|\Z)', re.DOTALL
+    )
+
+    def _replace(match):
+        header = match.group(1)
+        body = match.group(2)
+        return header + format_sources_list(body)
+
+    return sec_source_pattern.sub(_replace, section_text)
+
+
 def write_section(state: InterviewState):
     interview = state["interview"]
     context = state["context"]
@@ -310,6 +385,8 @@ def write_section(state: InterviewState):
     # Clean up the section content: normalize headings and extract clean sources
     section_content = normalize_headings(section.content)
     section_content = extract_clean_sources(section_content)
+    # Ensure sources within each section are formatted as a proper list
+    section_content = format_section_sources(section_content)
 
     return {"sections": [section_content]}
 
@@ -389,18 +466,24 @@ def finalize_report(state: ResearchGraphState):
     # Apply heading normalization to the body content
     content = normalize_headings(content)
 
-    # Extract source entries ONLY from "## Sources" or "### Sources" sections
+    # Extract source entries from "## Sources" or "### Sources" sections
+    # in the consolidated content
     source_section_pattern = re.compile(
         r'###?\s+Sources\s*\n(.*?)(?=\n## |\n\n## |\Z)', re.DOTALL
     )
     source_sections = source_section_pattern.findall(content)
 
-    placeholder_phrases = [
-        "source not provided", "source not found",
-        "not provided in the given", "not found in", "no source",
-        "document not explicitly cited", "source #", "<document",
-        "document source", "not relevant",
-    ]
+    # ALSO extract sources from individual analyst sections — the consolidated
+    # report writer is instructed to consolidate all sources into a single
+    # ## Sources section, but if it omits that, we fall back to the per-section
+    # ### Sources subsections which always contain real source URLs.
+    for sec in state.get("sections", []):
+        sec_src_pattern = re.compile(
+            r'###\s+Sources\s*\n(.*?)(?=\n###|\n##|\Z)', re.DOTALL
+        )
+        source_sections.extend(sec_src_pattern.findall(sec))
+
+    placeholder_phrases = PLACEHOLDER_PHRASES
 
     # Parse source entries from source sections only
     # A valid source entry looks like: [N] <url> or [N] Author, Title, etc.
@@ -410,11 +493,11 @@ def finalize_report(state: ResearchGraphState):
     source_entry_pattern = re.compile(r'\[(\d+)\]\s+(.+)')
 
     for sec in source_sections:
-        # Clean up any raw <Document> tags or JSON dumps in the source section
-        sec = extract_clean_sources(sec)
-        
-        for match in source_entry_pattern.findall(sec):
-            text = match.strip()
+        # Clean and format sources as a proper list (handles continuous form)
+        sec = format_sources_list(sec)
+
+        for _num, text in source_entry_pattern.findall(sec):
+            text = text.strip()
             text_lower = text.lower()
             is_placeholder = any(p in text_lower for p in placeholder_phrases)
             # Skip entries that look like fragments (too short or end with ) or ,)
@@ -452,13 +535,31 @@ def finalize_report(state: ResearchGraphState):
         body_content = re.sub(_typo, "Agentic", body_content)
     body_content = re.sub(r'agnetic-ai', 'agentic-ai', body_content)
 
-    # Process introduction
+    # Process introduction:
+    # - Ensure the # title is the research topic (NOT "Introduction")
+    # - Ensure ## Introduction appears as a section header in the body
+    topic = state.get("topic", "Research Report")
     introduction = state["introduction"]
-    introduction = re.sub(r"^(#+)\s*(#+\s*)?", "# ", introduction, count=1) if introduction.startswith("#") else introduction
     introduction = normalize_headings(introduction)
+
+    # Extract the introduction body text (strip ALL heading lines)
+    intro_body = introduction.lstrip()
+    # Remove the title heading (first # heading) if present
+    intro_body = re.sub(r'^#{1,6}\s+.*?\n+', '', intro_body, count=1)
+    # Remove ## Introduction heading if already present
+    intro_body = re.sub(
+        r'^##\s+Introduction\s*\n+', '', intro_body, count=1,
+        flags=re.IGNORECASE
+    )
+    intro_body = intro_body.strip()
+
+    # Fix common capitalization artifacts in the body
     for _typo in ["AGentic", "AGetic", "AGenti"]:
-        introduction = re.sub(_typo, "Agentic", introduction)
-        introduction = re.sub(r'agnetic-ai', 'agentic-ai', introduction)
+        intro_body = re.sub(_typo, "Agentic", intro_body)
+        intro_body = re.sub(r'agnetic-ai', 'agentic-ai', intro_body)
+
+    # Rebuild with proper title (topic) and section header
+    introduction = f'# {topic}\n\n## Introduction\n\n{intro_body}'
 
     # Process conclusion with heading normalization
     conclusion = state["conclusion"]
@@ -467,20 +568,15 @@ def finalize_report(state: ResearchGraphState):
         conclusion = re.sub(_typo, "Agentic", conclusion)
         conclusion = re.sub(r'agnetic-ai', 'agentic-ai', conclusion)
 
-    # Process individual sections - normalize headings and clean sources
+    # Process individual sections - normalize headings and format source lists
     sections = state.get("sections", [])
     cleaned_sections = []
     for sec in sections:
         sec = normalize_headings(sec)
-        # Clean any raw <Document> tags from source sections within individual sections
-        # Extract the ### Sources section and clean it
-        sec_source_pattern = re.compile(r'###\s+Sources\s*\n(.*?)(?=\n###|\n##|\Z)', re.DOTALL)
-        sec_source_sections = sec_source_pattern.findall(sec)
-        if sec_source_sections:
-            # Clean each source section
-            for sec_src in sec_source_sections:
-                cleaned_src = extract_clean_sources(sec_src)
-                sec = sec.replace(sec_src, cleaned_src)
+        # Format the ### Sources subsection within each section as a proper
+        # list (one source per line), cleaning <Document> tags and splitting
+        # any continuous/paragraph-form sources.
+        sec = format_section_sources(sec)
         cleaned_sections.append(sec)
 
     # ---------------------------------------------------------------

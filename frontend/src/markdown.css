@@ -1,7 +1,16 @@
 /* Markdown body styling - separate file to avoid Tailwind v4 purging */
+
+/* Base markdown body - ensure word wrapping for long unbroken strings (URLs, paths) */
 .markdown-body {
   line-height: 1.7;
   color: var(--color-text-primary);
+  /* Allow long unbroken strings (e.g. URLs) to wrap within the container */
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  /* Ensure the body never overflows its parent container */
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .markdown-body h1 {
@@ -33,6 +42,11 @@
   margin-top: 0;
   margin-bottom: 1rem;
   color: var(--color-text-primary);
+  /* Prevent paragraphs from overflowing container boundaries */
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .markdown-body p:first-child {
@@ -45,14 +59,25 @@
   margin-top: 0.5rem;
   margin-bottom: 1rem;
   line-height: 1.7;
+  /* Ensure list containers respect parent width */
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .markdown-body li {
   margin-bottom: 0.5rem;
+  /* Allow list items to shrink in flex/grid contexts */
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .markdown-body li p {
   margin-bottom: 0.5rem;
+  /* Override paragraph min-width in list context */
+  min-width: 0;
+  max-width: 100%;
 }
 
 .markdown-body strong {
@@ -69,6 +94,13 @@
 .markdown-body a {
   color: var(--color-accent);
   text-decoration: none;
+  /* Ensure long URLs inside links wrap instead of overflowing */
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  /* Allow links to shrink below intrinsic size in flex/grid contexts */
+  min-width: 0;
+  max-width: 100%;
+  display: inline;
 }
 
 .markdown-body a:hover {
@@ -81,6 +113,11 @@
   border-radius: 4px;
   font-size: 0.9em;
   color: var(--color-accent);
+  /* Prevent long code strings from overflowing */
+  overflow-wrap: anywhere;
+  word-break: break-all;
+  max-width: 100%;
+  display: inline-block;
 }
 
 .markdown-body h2 + p {
