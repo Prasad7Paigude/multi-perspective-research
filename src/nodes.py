@@ -2,6 +2,7 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, get_
 from langgraph.graph import END
 from langgraph.types import Send
 import json
+import re
 
 from config.settings import llm
 from src.state import (
@@ -154,8 +155,9 @@ def search_web(state: InterviewState):
 
     formatted_search_docs = "\n\n---\n\n".join(
         [
-            f'<Document href="{doc.get("url", "")}"/>\n{doc.get("content", str(doc))}\n</Document>'
+            f'<Document href="{doc.get("url", "")}" title="{doc.get("title", "")}"/>\n{doc.get("content", "")}\n</Document>'
             for doc in search_docs
+            if isinstance(doc, dict) and doc.get("url")  # filter invalid entries
         ]
     )
 
@@ -175,8 +177,9 @@ def search_wikipedia(state: InterviewState):
 
     formatted_search_docs = "\n\n---\n\n".join(
         [
-            f'<Document source="{doc.metadata["source"]}" page="{doc.metadata.get("page", "")}"/>\n{doc.page_content}\n</Document>'
+            f'<Document href="{doc.metadata["source"]}" title="{doc.metadata.get("title", doc.metadata.get("page", ""))}"/>\n{doc.page_content}\n</Document>'
             for doc in search_docs
+            if hasattr(doc, "metadata") and doc.metadata.get("source")
         ]
     )
 
@@ -226,6 +229,71 @@ def route_messages(state: InterviewState, name: str = "expert"):
     return "ask_question"
 
 
+# ============================================================
+# Shared Helper Functions
+# ============================================================
+
+def normalize_headings(text: str) -> str:
+    """Ensure all markdown headings have a blank line before and a newline after.
+
+    Handles cases where the model runs headings directly into preceding/following text
+    without proper line breaks. Preserves content inside code blocks.
+    """
+    if not text:
+        return text
+
+    # Split by code blocks (keeping the fences as separate parts)
+    parts = re.split(r'(```)', text)
+
+    result_parts = []
+    in_code_block = False
+
+    for part in parts:
+        if part == '```':
+            result_parts.append(part)
+            in_code_block = not in_code_block
+        else:
+            if in_code_block:
+                result_parts.append(part)
+            else:
+                # Step 1: Fix headings that run directly into preceding text
+                part = re.sub(r'([^\n#\s])\s*(#{1,6}\s)', r'\1\n\n\2', part)
+                # Step 2: Insert blank line before any heading preceded by a single newline
+                part = re.sub(r'([^\n])\n(#{1,6}\s)', r'\1\n\n\2', part)
+                # Step 3: Clean up excessive newlines
+                part = re.sub(r'\n{3,}', '\n\n', part)
+                result_parts.append(part)
+
+    return ''.join(result_parts)
+
+
+def extract_clean_sources(text: str) -> str:
+    """Extract clean URL/title references from <Document> tags in source sections."""
+    doc_pattern = re.compile(
+        r'<Document\s[^>]*?href="([^"]*)"(?:[^>]*?title="([^"]*)")?[^>]*/>',
+        re.DOTALL
+    )
+    doc_source_pattern = re.compile(
+        r'<Document\s[^>]*?source="([^"]*)"[^>]*/>',
+        re.DOTALL
+    )
+
+    def replace_doc(match):
+        url = match.group(1)
+        title = match.group(2) if match.group(2) else ""
+        if title:
+            return f'{url}, {title}'
+        return url
+
+    text = doc_pattern.sub(replace_doc, text)
+    text = doc_source_pattern.sub(lambda m: m.group(1), text)
+    # Remove any remaining raw JSON/object dumps
+    text = re.sub(r'\{[^{}]*?\}', '', text)
+    text = re.sub(r'<[^/>]+/>', '', text)
+
+    return text
+
+
 def write_section(state: InterviewState):
     interview = state["interview"]
     context = state["context"]
@@ -239,7 +307,11 @@ def write_section(state: InterviewState):
         [HumanMessage(content=f"Use this source to write your section: {context}\n\nInterview transcript:\n{interview}")]
     )
 
-    return {"sections": [section.content]}
+    # Clean up the section content: normalize headings and extract clean sources
+    section_content = normalize_headings(section.content)
+    section_content = extract_clean_sources(section_content)
+
+    return {"sections": [section_content]}
 
 
 # ============================================================
@@ -310,16 +382,16 @@ def write_conclusion(state: ResearchGraphState):
 
 
 def finalize_report(state: ResearchGraphState):
-    import re
-
     content = state["content"]
     if content.startswith("## Insights"):
         content = content[len("## Insights"):].lstrip()
 
-    # Extract source entries ONLY from "## Sources" or "### Sources" sections,
-    # not from inline citations in the body text.
+    # Apply heading normalization to the body content
+    content = normalize_headings(content)
+
+    # Extract source entries ONLY from "## Sources" or "### Sources" sections
     source_section_pattern = re.compile(
-        r'###?\s+Sources\s*\n(.*?)(?=\n## |\Z)', re.DOTALL
+        r'###?\s+Sources\s*\n(.*?)(?=\n## |\n\n## |\Z)', re.DOTALL
     )
     source_sections = source_section_pattern.findall(content)
 
@@ -333,14 +405,16 @@ def finalize_report(state: ResearchGraphState):
     # Parse source entries from source sections only
     # A valid source entry looks like: [N] <url> or [N] Author, Title, etc.
     unique_sources = []
-    num_map = {}  # old citation number -> new citation number
     seen_texts = set()
 
     source_entry_pattern = re.compile(r'\[(\d+)\]\s+(.+)')
 
     for sec in source_sections:
-        for num_str, text in source_entry_pattern.findall(sec):
-            text = text.strip()
+        # Clean up any raw <Document> tags or JSON dumps in the source section
+        sec = extract_clean_sources(sec)
+        
+        for match in source_entry_pattern.findall(sec):
+            text = match.strip()
             text_lower = text.lower()
             is_placeholder = any(p in text_lower for p in placeholder_phrases)
             # Skip entries that look like fragments (too short or end with ) or ,)
@@ -354,28 +428,23 @@ def finalize_report(state: ResearchGraphState):
             # Skip entries that are just closing punctuation
             if re.match(r'^[\),\]\s]+', text):
                 continue
+            # Skip entries that are still raw JSON dumps or object reprs
+            if text.startswith('{') or text.startswith('<'):
+                continue
             seen_texts.add(text_lower)
-            old_num = int(num_str)
-            new_num = len(unique_sources) + 1
-            num_map[old_num] = new_num
             unique_sources.append(text)
 
-    # Strip ALL source sections from the body content
-    body_content = re.sub(r'###?\s+Sources\s*\n.*?(?=\n## |\Z)', '', content, flags=re.DOTALL)
+    # Strip ALL source sections from the body content (both ## and ###)
+    body_content = re.sub(
+        r'###?\s+Sources\s*\n.*?(?=\n## |\n\n## |\Z)', '', content, flags=re.DOTALL
+    )
 
-    # Now remap inline citations in the body to the new numbering
-    def remap_citation(match):
-        old_num = int(match.group(1))
-        if old_num in num_map:
-            return f"[{num_map[old_num]}]"
-        return ""
-
-    body_content = re.sub(r'\[(\d+)\]', remap_citation, body_content)
-
-    # Clean up orphaned parentheses left by removed citations
-    body_content = re.sub(r'\(\s*\)', '', body_content)
-    body_content = re.sub(r'\(\s*,', '(', body_content)
-    body_content = re.sub(r',\s*\)', ')', body_content)
+    # Remove all inline citation markers [n] from the body text
+    body_content = re.sub(r'\[\d+\]', '', body_content)
+    # Handle citations in parentheses like ([1])
+    body_content = re.sub(r'\s*\(\s*\)', '', body_content)
+    body_content = re.sub(r'\s*\[\s*\]', '', body_content)
+    body_content = re.sub(r'\s+,', ',', body_content)
     body_content = re.sub(r'\s{3,}', '  ', body_content)
 
     # Fix common capitalization artifacts
@@ -386,18 +455,36 @@ def finalize_report(state: ResearchGraphState):
     # Process introduction
     introduction = state["introduction"]
     introduction = re.sub(r"^(#+)\s*(#+\s*)?", "# ", introduction, count=1) if introduction.startswith("#") else introduction
+    introduction = normalize_headings(introduction)
     for _typo in ["AGentic", "AGetic", "AGenti"]:
         introduction = re.sub(_typo, "Agentic", introduction)
         introduction = re.sub(r'agnetic-ai', 'agentic-ai', introduction)
 
-    # Process conclusion
+    # Process conclusion with heading normalization
     conclusion = state["conclusion"]
+    conclusion = normalize_headings(conclusion)
     for _typo in ["AGentic", "AGetic", "AGenti"]:
         conclusion = re.sub(_typo, "Agentic", conclusion)
         conclusion = re.sub(r'agnetic-ai', 'agentic-ai', conclusion)
 
+    # Process individual sections - normalize headings and clean sources
+    sections = state.get("sections", [])
+    cleaned_sections = []
+    for sec in sections:
+        sec = normalize_headings(sec)
+        # Clean any raw <Document> tags from source sections within individual sections
+        # Extract the ### Sources section and clean it
+        sec_source_pattern = re.compile(r'###\s+Sources\s*\n(.*?)(?=\n###|\n##|\Z)', re.DOTALL)
+        sec_source_sections = sec_source_pattern.findall(sec)
+        if sec_source_sections:
+            # Clean each source section
+            for sec_src in sec_source_sections:
+                cleaned_src = extract_clean_sources(sec_src)
+                sec = sec.replace(sec_src, cleaned_src)
+        cleaned_sections.append(sec)
+
     # Build the final report
-    formatted_sources = "\n\n".join(
+    formatted_sources = "\n".join(
         f"[{i+1}] {src}" for i, src in enumerate(unique_sources)
     )
 
@@ -408,4 +495,4 @@ def finalize_report(state: ResearchGraphState):
     )
     final_report += "\n\n## Sources\n" + formatted_sources
 
-    return {"final_report": final_report}
+    return {"final_report": final_report, "sections": cleaned_sections}

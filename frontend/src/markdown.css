@@ -32,7 +32,7 @@
   line-height: 1.7;
   margin-top: 0;
   margin-bottom: 1rem;
-  color: var(--color-text-secondary);
+  color: var(--color-text-primary);
 }
 
 .markdown-body p:first-child {

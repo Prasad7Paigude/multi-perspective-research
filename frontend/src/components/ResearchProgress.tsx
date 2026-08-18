@@ -108,18 +108,31 @@ function ResearchProgress({ sections, isComplete }: ResearchProgressProps) {
         </div>
 
         <div className="space-y-3.5 max-h-80 overflow-y-auto pr-1">
-          {currentStep === 0 && (
+          {/* Stage completion status line — mutually exclusive, driven by the same
+              state (currentStep / isComplete) that powers the stage indicator icons
+              so the Live Activity line and icons always stay in sync. */}
+          {isComplete ? (
+            <div className="flex items-center gap-2.5 text-xs text-success font-semibold animate-fadeIn gemini-card p-3.5">
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
+              Report synthesis complete
+            </div>
+          ) : currentStep === 2 ? (
+            <div className="flex items-center gap-2.5 text-xs text-success animate-fadeIn gemini-card p-3.5">
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
+              Expert interviews completed
+            </div>
+          ) : currentStep >= 1 ? (
+            <div className="flex items-center gap-2.5 text-xs text-success animate-fadeIn gemini-card p-3.5">
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
+              Analyst panel assembled and approved
+            </div>
+          ) : (
             <div className="flex items-center gap-2.5 text-xs text-text-tertiary animate-fadeIn gemini-card p-3.5">
               <span className="w-2 h-2 rounded-full bg-[#4285f4] animate-pulse" />
               Initializing analyst panel...
             </div>
           )}
-          {currentStep >= 1 && (
-            <div className="flex items-center gap-2.5 text-xs text-success animate-fadeIn gemini-card p-3.5">
-              <CheckCircle2 className="w-4 h-4 shrink-0" />
-              Analyst panel assembled and approved
-            </div>
-          )}
+
           {sections.map((_, i) => (
             <div key={i} className="flex items-center gap-2.5 text-xs text-text-secondary animate-fadeIn gemini-card p-3.5" style={{ animationDelay: `${i * 0.1}s` }}>
               <span className="w-2 h-2 rounded-full bg-success shrink-0" />
@@ -136,12 +149,6 @@ function ResearchProgress({ sections, isComplete }: ResearchProgressProps) {
             <div className="flex items-center gap-2.5 text-xs text-text-tertiary animate-fadeIn gemini-card p-3.5">
               <span className="w-2 h-2 rounded-full bg-[#f2702f] animate-pulse" />
               Compiling report insights...
-            </div>
-          )}
-          {isComplete && (
-            <div className="flex items-center gap-2.5 text-xs text-success font-semibold animate-fadeIn gemini-card p-3.5">
-              <CheckCircle2 className="w-4 h-4 shrink-0" />
-              Research complete - report ready
             </div>
           )}
         </div>

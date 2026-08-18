@@ -99,19 +99,9 @@ When answering questions, follow these guidelines:
 
 2. Do not introduce external information or make assumptions beyond what is explicitly stated in the context.
 
-3. The context contain sources at the topic of each individual document.
+3. The context contains the source documents used to inform your answer.
 
-4. Include these sources your answer next to any relevant statements. For example, for source # 1 use [1]. 
-
-5. List your sources in order at the bottom of your answer. [1] Source 1, [2] Source 2, etc
-        
-6. If the source is: <Document source="assistant/docs/llama3_1.pdf" page="7"/>' then just list: 
-        
-[1] assistant/docs/llama3_1.pdf, page 7 
-        
-And skip the addition of the brackets as well as the Document source preamble in your citation.
-
-7. Frame your answers from the perspective relevant to the analyst's persona — address the specific
+4. Frame your answers from the perspective relevant to the analyst's persona — address the specific
    concerns, priorities, and domain knowledge reflected above, rather than giving a generic overview.
    For instance, if the analyst is a patient-advocacy director, emphasize equity, access, autonomy,
    and patient-safety considerations; if the analyst is a pharma R&D director, emphasize drug
@@ -143,36 +133,32 @@ specific perspective and what is novel/interesting about the insights gathered.
 ### Key Findings
 A bulleted list of the most important, specific points relevant to this analyst's concerns.
 Include concrete details, numbers, case studies, or named products whenever the context supports it.
-Each finding MUST include an inline citation using [n] format at the END of the sentence that makes
-the specific claim — for example: "- Agentic AI can automate up to 85% of routine administrative tasks ([1])."
-Do NOT place citation markers as standalone bracket lists before paragraph content.
+Do NOT include inline citation brackets ([n]) within findings text.
 
 ### Risks & Challenges
 A discussion of risks, challenges, or concerns specifically relevant to this analyst's stated
 perspective (e.g., equity/access for a patient advocate, pipeline delays for a pharma R&D lead,
-auditability for an explainability researcher).  Include inline citations [n] at the end of each
-sentence that makes a sourced claim.
+auditability for an explainability researcher).
 
-### Conclusion
+### Takeaways
 A brief concluding takeaway from this analyst's unique perspective — one sentence summarising
 their key recommendation or warning.
 
 ### Sources
-- Include all sources used in your report
-- Provide full links to relevant websites or specific document paths
-- Separate each source by a newline. Use two spaces at the end of each line to create a newline in Markdown.
-- It will look like:
+- Include ALL sources that were used to inform your report
+- Provide full URLs or document paths for each source
+- List each source on its own line using the format [N] URL or Title
+- Do NOT use placeholder text like 'Source 1' or 'Source 2'
 
-[1] Link or Document name
-[2] Link or Document name
+[1] https://example.com/article, Article Title
+[2] https://en.wikipedia.org/wiki/Topic, Topic - Wikipedia
 
 3. Make your title engaging based upon the focus area and perspective of the analyst.
 
 4. For the summary section:
 - Do not mention the names of interviewers or experts
 - Aim for approximately 400 words maximum for the entire section (excluding sources)
-- Use numbered sources in your report (e.g., [1], [2]) based on information from source documents
-- Cite sources inline at the point where a specific claim is made — do NOT just list them at the end
+- Cite sources only in the Sources section at the end of your report — do NOT cite them inline in the body text
 
 5. Be sure to combine sources — do not list the same URL/document more than once.
 
@@ -180,7 +166,7 @@ their key recommendation or warning.
    If unsure of casing, write the term normally: "Agentic Artificial Intelligence".
 
 7. Final review:
-- Ensure the report follows the required structure exactly (Summary, Key Findings, Risks & Challenges, Conclusion, Sources)
+- Ensure the report follows the required structure exactly (Summary, Key Findings, Risks & Challenges, Takeaways, Sources)
 - Include no preamble before the title of the report
 - Check that all guidelines have been followed"""
 
@@ -205,14 +191,13 @@ DEDUPLICATION — THIS IS THE SINGLE MOST IMPORTANT REQUIREMENT:
 You MUST consolidate overlapping claims across all analyst memos into a SINGLE mention.
 Even if three different analysts mention the SAME claim (e.g. "up to 85% of administrative
 tasks automated", "accelerated drug discovery timelines", "remote patient monitoring"), you
-MUST mention it ONCE only, with all supporting citations merged: "Agentic AI can automate up
-to 85% of routine administrative tasks ([1], [2])."
+MUST mention it ONCE only, with all supporting sources consolidated into a single Sources section at the end.
 
 Process: 
   Step 1: Read ALL memos completely.
   Step 2: List every unique substantive claim, statistic, and finding on a scratchpad.
   Step 3: Cross off any claim that appears in more than one memo — keep only ONE instance,
-          merging all citations into that single instance.
+          consolidating all sources into that single mention.
   Step 4: Write the report body using ONLY the deduplicated list. Do NOT restate any claim
           that has already been written.
 
@@ -234,16 +219,11 @@ To format your report:
 2. Include no pre-amble for the report.
 3. Start your report with a single title header: ## Insights
 4. Do not mention any analyst names in your report.
-5. **CRITICAL**: When summarising claims from the memos, you MUST preserve inline citations.  If a claim in a memo states "[1] The study found X," then your summary must include "[1]" next to that claim.  Do not strip citations during summmariesation.  This ensures every claim in your report can be traced back to a specific source.
-6. **CRITICAL**: Write citation markers inline within sentences at the point where a specific claim is made.  Do NOT place citation markers as standalone bracket lists at the beginning of a paragraph, before a heading, or floating without accompanying text.  Example CORRECT: "Agentic AI can automate up to 85% of routine tasks ([1])."  Example INCORRECT: "[1] [2] Agentic AI can automate..."
-7. Create a final, consolidated list of sources and add to a Sources section with the `## Sources` header.
-8. List your sources in order and do not repeat.
-9. **CRITICAL**: Every inline citation number [n] in your report body MUST correspond to a real, resolvable source entry in the Sources list below.  Do NOT invent citation numbers or reference sources that are not actually listed.  If you cannot find a real supporting source for a claim, do NOT cite it with a placeholder number — either find a real supporting source or state the claim without a citation.
-
-Here is the canonical source list (numbered).  Only cite numbers that appear here:
-
-[1] Source 1
-[2] Source 2
+5. Write in normal prose without inline citation markers. Do NOT include [n] brackets within the body text.
+6. Create a final, consolidated list of sources and add to a Sources section with the `## Sources` header.
+7. List your sources in order and do not repeat.
+Do NOT invent citation numbers or reference sources that are not actually listed.
+If you cannot find a real supporting source for a claim, do NOT cite it — either find a real supporting source or state the claim without a citation.
 
 Here are the memos from your analysts to build your report from: 
 
