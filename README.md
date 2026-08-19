@@ -6,29 +6,27 @@
 [![FastAPI 0.140.1](https://img.shields.io/badge/FastAPI-0.140.1-009688?style=flat&logo=fastapi&logoColor=fff)](https://fastapi.tiangolo.com/)
 [![Uvicorn 0.50.2](https://img.shields.io/badge/Uvicorn-0.50.2-4990E2?style=flat)](https://www.uvicorn.org/)
 
-> **Status:** Production-ready **multi-agent research pipeline** with **LangGraph**, **LangChain**, and **FastAPI**. Features **human-in-the-loop feedback**, **parallel interviews**, and **map-reduce report synthesis**.
+> **Status:** Practice project to showcase **LangGraph and its concepts** (nodes, graphs, reducers, map-reduce, memory, multi-agent systems). **Not intended for production use**.
 
 ## 🎯 Core Mission
 
 ### The Problem
-Traditional research workflows suffer from **three critical bottlenecks**:
-
-1. **Manual Effort**: Analyst persona creation, expert interviews, and report synthesis are **time-consuming and error-prone**.
-2. **Lack of Automation**: No **scalable, modular** way to orchestrate **multi-agent collaboration** for research tasks.
-3. **Silos of Knowledge**: Research insights are **fragmented** across interviews, making it difficult to **consolidate findings** into a cohesive report.
+In the AI landscape, there is a growing need to understand how **multi-agent systems** can be orchestrated to perform **complex workflows**. This project was created to explore and demonstrate the capabilities of **LangGraph** in building such systems.
 
 ### The Solution
-**Research Assistant** is a **multi-agent AI research pipeline** built on **LangGraph** and **LangChain** that:
+**Research Assistant** is a **practice project** built on **LangGraph** and **LangChain** to demonstrate:
 
-✅ **Generates diverse AI analyst personas** with **human-in-the-loop feedback** for refinement.
-✅ **Conducts parallel expert interviews** using **Tavily web search** and **Wikipedia** for context.
-✅ **Synthesizes findings** into a **structured final report** with **introduction, insights, and conclusion**.
-✅ **Streams progress in real-time** via **Server-Sent Events (SSE)** for a seamless user experience.
-
-### Impact
-- **Automates 90% of the research workflow** (analyst generation → interviews → report synthesis).
-- **Reduces manual effort** by leveraging **multi-agent collaboration** and **LLM-powered automation**.
-- **Improves accuracy** with **structured prompts**, **retrieval-augmented generation (RAG)**, and **human feedback loops**.
+✅ **Multi-agent collaboration** with **LangGraph state machines**.
+✅ **Graph-based workflows** (nodes, edges, reducers, map-reduce).
+✅ **Human-in-the-loop feedback** for analyst refinement.
+✅ **Parallel interviews** with **Tavily + Wikipedia RAG**.
+✅ **Real-time streaming** via **FastAPI SSE**.
+### Purpose
+**Key Takeaways**:
+- Demonstrates **LangGraph** for **multi-agent orchestration**.
+- Implements **map-reduce patterns** for report synthesis.
+- Uses **RAG (Tavily + Wikipedia)** for contextual answers.
+- Showcases **human-in-the-loop feedback** and **real-time streaming**.
 
 ### Graph-Based Architecture
 Your project implements **three LangGraph state machines** that work together to orchestrate the research pipeline:
@@ -232,8 +230,7 @@ Research Assistant/
   - **User control** over the research process.
   - **Higher-quality outputs** by incorporating **human judgment**.
 
-## 🛠 Enterprise Quick Start
-
+## 🛠 Quick Start
 <details>
 <summary><b>View Installation & Execution Commands</b></summary>
 

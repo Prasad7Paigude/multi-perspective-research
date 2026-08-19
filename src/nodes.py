@@ -318,6 +318,71 @@ PLACEHOLDER_PHRASES = [
 ]
 
 
+def check_unsupported_claims(section_content: str, context: str, analyst_name: str) -> None:
+    """Check for high-risk numeric claims in section_content that cannot be found in context.
+
+    Extracts specific numeric claims (e.g., "10,000 patients", "85%") and checks
+    if they appear in the source context. Logs a warning if a claim cannot be
+    matched, indicating a potential hallucination.
+
+    Only checks claims with 3+ digit numbers or numbers paired with high-risk
+    units (%), "million", "billion") to avoid noise from small numbers.
+    """
+    # Regex to extract high-risk numeric claims
+    # - 3+ digit numbers with any of the following units: patients, percent, %, dollars, million, billion, cases, years, units, people, hospitals, breaches
+    # - Any number (1-2 digits) paired with percent, %, million, or billion (e.g., "85%", "2 million")
+    # Using (?<![\d,]) to ensure we don't match partial numbers within larger numbers
+    # Using (?!\w) to ensure we don't match partial words after the unit
+    claim_pattern = re.compile(
+        r'(?<![\d,])(?:'
+        r'\d{1,3}(?:,\d{3})*(?:\.\d+)?(?:\s+|)(?:patients|percent|%|dollars|million|billion|cases|years|units|people|hospitals|breaches)'
+        r'|'
+        r'\d{1,2}(?:\.\d+)?(?:\s+|)(?:percent|%|million|billion)'
+        r')(?!\w)',
+        re.IGNORECASE
+    )
+    
+    for match in claim_pattern.finditer(section_content):
+        claim = match.group()
+        # Extract the number part from the claim
+        number_match = re.search(r'\d{1,3}(?:,\d{3})*(?:\.\d+)?', claim)
+        if not number_match:
+            continue
+        number = number_match.group()
+        # Also create a comma-stripped version for matching
+        number_stripped = number.replace(',', '')
+
+        context_lower = context.lower()
+        claim_lower = claim.lower()
+        number_lower = number.lower()
+        number_stripped_lower = number_stripped.lower()
+
+        # Check for exact claim, number (with/without commas), or stripped number
+        if (claim_lower not in context_lower and
+            number_lower not in context_lower and
+            number_stripped_lower not in context_lower):
+            logger.warning(
+                f"[UNSUPPORTED CLAIM] Possible unsupported claim: \"{claim}\" not found in source context for analyst {analyst_name}"
+            )
+
+
+def validate_section_schema(section_content: str, analyst_name: str) -> bool:
+    """Check if the section contains all required headings.
+
+    Required headings: ### Key Findings, ### Risks & Challenges, ### Takeaways
+    Returns True if all headings are present (case-insensitive), False otherwise.
+    """
+    required_headings = [
+        r'###\s*Key Findings',
+        r'###\s*Risks & Challenges',
+        r'###\s*Takeaways'
+    ]
+    for heading in required_headings:
+        if not re.search(heading, section_content, re.IGNORECASE):
+            return False
+    return True
+
+
 def format_sources_list(text: str) -> str:
     """Ensure source entries are formatted as a proper list, one per line.
 
@@ -325,6 +390,8 @@ def format_sources_list(text: str) -> str:
     (e.g., all on one line: ``[1] url1, title1 [2] url2, title2``) by splitting
     them into individual entries.  Supports both ``[N]`` numbered entries and
     bare URL entries with optional titles.
+
+    Logs filtering statistics for diagnostic visibility.
     """
     if not text or not text.strip():
         return text
@@ -345,6 +412,8 @@ def format_sources_list(text: str) -> str:
 
     if matches:
         sources = []
+        placeholder_removed = 0
+        invalid_removed = 0
         for num, content in matches:
             content = content.strip()
             # Take only the first line in case of embedded newlines
@@ -353,19 +422,31 @@ def format_sources_list(text: str) -> str:
             content = re.sub(r'^[.,;:]+', '', content)
             content = re.sub(r'[.,;:]+$', '', content)
             if not content or len(content) < 5:
+                invalid_removed += 1
                 continue
             content_lower = content.lower()
             if any(p in content_lower for p in PLACEHOLDER_PHRASES):
+                placeholder_removed += 1
                 continue
             sources.append(f'[{num}] {content}')
+
+        # Log filtering statistics
+        total_removed = placeholder_removed + invalid_removed
+        logger.info(
+            f"[SOURCE FILTER] {len(matches)} candidates -> {len(sources)} kept "
+            f"({total_removed} removed: {placeholder_removed} placeholder, {invalid_removed} invalid)"
+        )
+
         if sources:
             return '\n'.join(sources)
 
     # Fallback: extract bare URLs (no [N] numbering present)
     urls = re.findall(r'https?://[^\s,\n;]+', text)
     if urls:
+        logger.info(f"[SOURCE FILTER] Fallback to bare URLs: {len(urls)}")
         return '\n'.join(f'[{i+1}] {url}' for i, url in enumerate(urls))
 
+    logger.info("[SOURCE FILTER] No valid sources found")
     return text
 
 
@@ -388,21 +469,46 @@ def write_section(state: InterviewState):
     interview = state["interview"]
     context = state["context"]
     analyst = state["analyst"]
+    analyst_name = analyst.name if hasattr(analyst, 'name') else str(analyst)
 
     system_message = section_writer_instructions.format(
         persona=format_persona(analyst),
         context="\n".join(context) if context else "No sources available"
     )
-    section = llm.invoke(
-        [SystemMessage(content=system_message)] +
-        [HumanMessage(content=f"Use this source to write your section: {context}\n\nInterview transcript:\n{interview}")]
-    )
 
-    # Clean up the section content: normalize headings and extract clean sources
-    section_content = normalize_headings(section.content)
-    section_content = extract_clean_sources(section_content)
-    # Ensure sources within each section are formatted as a proper list
-    section_content = format_section_sources(section_content)
+    def _generate_and_clean():
+        """Generate section content and apply cleaning steps."""
+        sec = llm.invoke(
+            [SystemMessage(content=system_message)] +
+            [HumanMessage(content=f"Use this source to write your section: {context}\n\nInterview transcript:\n{interview}")]
+        )
+        # Clean up the section content: normalize headings and extract clean sources
+        content = normalize_headings(sec.content)
+        content = extract_clean_sources(content)
+        # Ensure sources within each section are formatted as a proper list
+        content = format_section_sources(content)
+        return content
+
+    # First attempt
+    section_content = _generate_and_clean()
+    print(f"[DEBUG] write_section for {analyst_name} - generating first attempt", flush=True)
+
+    # Check for unsupported claims
+    check_unsupported_claims(section_content, "\n".join(context) if context else "", analyst_name)
+
+    # Validate schema - retry once if required headings are missing
+    if not validate_section_schema(section_content, analyst_name):
+        print(f"[DEBUG] Schema validation FAILED for {analyst_name} - retrying", flush=True)
+        logger.info(f"[SCHEMA RETRY] Retrying section for {analyst_name} due to missing schema...")
+        # Retry once
+        section_content = _generate_and_clean()
+
+        # Check again
+        if not validate_section_schema(section_content, analyst_name):
+            print(f"[DEBUG] Schema validation STILL FAILED for {analyst_name} after retry", flush=True)
+            logger.warning(
+                f"[SCHEMA WARNING] Section for {analyst_name} missing required schema after retry — proceeding with unstructured content"
+            )
 
     return {"sections": [section_content]}
 
