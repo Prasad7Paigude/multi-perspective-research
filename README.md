@@ -16,11 +16,11 @@ In the AI landscape, there is a growing need to understand how **multi-agent sys
 ### The Solution
 **Research Assistant** is a **practice project** built on **LangGraph** and **LangChain** to demonstrate:
 
-✅ **Multi-agent collaboration** with **LangGraph state machines**.
-✅ **Graph-based workflows** (nodes, edges, reducers, map-reduce).
-✅ **Human-in-the-loop feedback** for analyst refinement.
-✅ **Parallel interviews** with **Tavily + Wikipedia RAG**.
-✅ **Real-time streaming** via **FastAPI SSE**.
+- ✅ **Multi-agent collaboration** with **LangGraph state machines**.
+- ✅ **Graph-based workflows** (nodes, edges, reducers, map-reduce).
+- ✅ **Human-in-the-loop feedback** for analyst refinement.
+- ✅ **Parallel interviews** with **Tavily + Wikipedia RAG**.
+- ✅ **Real-time streaming** via **FastAPI SSE**.
 ### Purpose
 **Key Takeaways**:
 - Demonstrates **LangGraph** for **multi-agent orchestration**.
