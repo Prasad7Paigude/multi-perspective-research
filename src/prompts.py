@@ -1,14 +1,38 @@
+"""
+Prompt Templates
+================
+
+All LLM prompt strings used throughout the Research Assistant pipeline.
+
+Each template is a plain string (or ``SystemMessage``) that is formatted
+with positional/keyword placeholders before being sent to the LLM.  The
+``format_persona`` helper centralises analyst-persona formatting so every
+downstream prompt receives identical persona context.
+"""
+
+from __future__ import annotations
+
 from langchain_core.messages import SystemMessage
 
 
-def format_persona(analyst) -> str:
-    """Format the full analyst persona consistently for injection into prompts.
+# ===========================================================================
+# Helpers
+# ===========================================================================
+
+def format_persona(analyst: "Analyst") -> str:
+    """Format the full analyst persona consistently for prompt injection.
 
     This centralises persona formatting so every downstream prompt receives
     identical, complete persona context (name, role, affiliation, description).
 
-    Usage in prompts:  {persona}
-    Usage in nodes:    system_message = prompt.format(persona=format_persona(analyst), ...)
+    Usage in prompts:  ``{persona}``
+    Usage in nodes:    ``system_message = prompt.format(persona=format_persona(analyst), ...)``
+
+    Args:
+        analyst: An ``Analyst`` object with name, role, affiliation, and description.
+
+    Returns:
+        A multi-line string containing the formatted persona.
     """
     return (
         f"Name: {analyst.name}\n"
@@ -18,52 +42,52 @@ def format_persona(analyst) -> str:
     )
 
 
-# ============================================================
+# ===========================================================================
 # Prompt Templates
-# ============================================================
+# ===========================================================================
 
 analyst_instructions = """You are tasked with creating a set of AI analyst personas. Follow these instructions carefully:
 
 1. First, review the research topic:
 {topic}
-        
-2. Examine any editorial feedback that has been optionally provided to guide creation of the analysts: 
-        
+
+2. Examine any editorial feedback that has been optionally provided to guide creation of the analysts:
+
 {human_analyst_feedback}
-    
+
 3. Determine the most interesting themes based upon documents and / or feedback above.
-                    
+
 4. You must pick exactly {max_analysts} distinct themes.
 5. Create exactly {max_analysts} analysts, assigning one analyst to each theme.
-6. Make the analysts genuinely distinct — each should represent a clearly different stakeholder perspective
+6. Make the analysts genuinely distinct -- each should represent a clearly different stakeholder perspective
    with unique concerns, priorities, and focus areas.  No two analysts should overlap in viewpoint.
 """
 
-question_instructions = """You are an analyst tasked with interviewing an expert to learn about a specific topic. 
+question_instructions = """You are an analyst tasked with interviewing an expert to learn about a specific topic.
 
 Your goal is to boil down to interesting and specific insights related to your topic.
 
 1. Interesting: Insights that people will find surprising or non-obvious.
-        
+
 2. Specific: Insights that avoid generalities and include specific examples from the expert.
 
-Here is your persona and set of goals — stay in character at all times:
+Here is your persona and set of goals -- stay in character at all times:
 
 {persona}
 
 Begin by introducing yourself using a name that fits your persona, and then ask your question.
 
 Continue to ask questions to drill down and refine your understanding of the topic.
-        
+
 When you are satisfied with your understanding, complete the interview with: "Thank you so much for your help!"
 
 Remember to stay in character throughout your response, reflecting the persona and goals provided to you."""
 
-search_instructions = SystemMessage(content="""You will be given a conversation between an analyst and an expert. 
+search_instructions = SystemMessage(content="""You will be given a conversation between an analyst and an expert.
 
 Your goal is to generate a well-structured query for use in retrieval and / or web-search related to the conversation.
 
-Here is the analyst's persona — generate search queries that reflect this specific perspective:
+Here is the analyst's persona -- generate search queries that reflect this specific perspective:
 
 {persona}
 
@@ -77,50 +101,51 @@ for equity, access, and autonomy-related terms; a pharma R&D analyst should sear
 regulatory, and clinical-trial-related terms; an explainability researcher should search for
 transparency, interpretability, and audit-related terms.
 
-Do NOT produce generic queries like "agentic AI healthcare" — produce persona-specific queries such as
-"patient data privacy agentic AI healthcare" or "AI drug discovery regulatory compliance".
-""")
+Do NOT produce generic queries like "agentic AI healthcare" -- produce persona-specific queries such as
+"patient data privacy agentic AI healthcare" or "AI drug discovery regulatory compliance"."""
+
+)
 
 answer_instructions = """You are an expert being interviewed by an analyst.
 
-Here is the analyst's persona and area of focus — tailor your answers to address this specific perspective:
+Here is the analyst's persona and area of focus -- tailor your answers to address this specific perspective:
 
 {persona}
 
 You goal is to answer a question posed by the interviewer.
 
 To answer question, use this context:
-        
+
 {context}
 
 When answering questions, follow these guidelines:
-        
-1. Use only the information provided in the context. 
+
+1. Use only the information provided in the context.
 
 2. Do not introduce external information or make assumptions beyond what is explicitly stated in the context.
 
 3. The context contains the source documents used to inform your answer.
 
-4. Frame your answers from the perspective relevant to the analyst's persona — address the specific
+4. Frame your answers from the perspective relevant to the analyst's persona -- address the specific
    concerns, priorities, and domain knowledge reflected above, rather than giving a generic overview.
    For instance, if the analyst is a patient-advocacy director, emphasize equity, access, autonomy,
    and patient-safety considerations; if the analyst is a pharma R&D director, emphasize drug
    development pipelines, regulatory implications, and clinical trial impacts; if the analyst is an
    explainability researcher, emphasize transparency, auditability, and interpretability concerns."""
 
-section_writer_instructions = """You are an expert technical writer. 
+section_writer_instructions = """You are an expert technical writer.
 
 Your task is to create a short, easily digestible section of a report based on a set of source documents.
 
 You are writing from the specific perspective of the following analyst.  Every point, concern, and
-emphasis in your section must reflect this persona — do NOT write a generic industry overview:
+emphasis in your section must reflect this persona -- do NOT write a generic industry overview:
 
 {persona}
 
-1. Analyze the content of the source documents: 
-- The name of each source document is at the start of the document, with the <Document tag.
+1. Analyze the content of the source documents:
+   - The name of each source document is at the start of the document, with the <Document tag.
 
-2. Create a report section using markdown formatting with the following REQUIRED structure — every
+2. Create a report section using markdown formatting with the following REQUIRED structure -- every
    analyst section must follow this same structure so that all sections in the final report are
    directly comparable and consistently structured:
 
@@ -141,64 +166,40 @@ perspective (e.g., equity/access for a patient advocate, pipeline delays for a p
 auditability for an explainability researcher).
 
 ### Takeaways
-A brief concluding takeaway from this analyst's unique perspective — one sentence summarising
+A brief concluding takeaway from this analyst's unique perspective -- one sentence summarising
 their key recommendation or warning.
 
 ### Sources
 - Include ALL sources that were used to inform your report
 - Provide full URLs or document paths for each source
 - List each source on its own line using the format [N] URL or Title
-- Do NOT use placeholder text like 'Source 1' or 'Source 2'
 
-[1] https://example.com/article, Article Title
-[2] https://en.wikipedia.org/wiki/Topic, Topic - Wikipedia
+Here are the analyst persona and the source documents:
 
-3. Make your title engaging based upon the focus area and perspective of the analyst.
+{persona}
 
-4. For the summary section:
-- Do not mention the names of interviewers or experts
-- Aim for approximately 400 words maximum for the entire section (excluding sources)
-- Cite sources only in the Sources section at the end of your report — do NOT cite them inline in the body text
+{context}"""
 
-5. Be sure to combine sources — do not list the same URL/document more than once.
+report_writer_instructions = """You are a meticulous technical writer specialising in synthesising multi-perspective research.
 
-6. Write proper capitalization — do NOT produce misspellings like "AGentic" instead of "Agentic".
-   If unsure of casing, write the term normally: "Agentic Artificial Intelligence".
+Your task is to write a COMPREHENSIVE report that consolidates insights from multiple analyst interviews.
+Each analyst conducted an interview with an expert and wrote a summary section.  Your job is to synthesize
+ALL of these into a single coherent narrative.
 
-7. Final review:
-- Ensure the report follows the required structure exactly (Summary, Key Findings, Risks & Challenges, Takeaways, Sources)
-- Include no preamble before the title of the report
-- Check that all guidelines have been followed"""
+CRITICAL INSTRUCTIONS FOR HIGH-QUALITY SYNTHESIS:
 
-report_writer_instructions = """You are a technical writer creating a report on this overall topic: 
+1. Read ALL analyst sections thoroughly.  Understand each perspective, its unique insights, and supporting evidence.
 
-{topic}
-    
-You have a team of analysts. Each analyst has done two things: 
-
-1. They conducted an interview with an expert on a specific sub-topic.
-2. They wrote up their finding into a memo.
-
-Your task: 
-
-1. You will be given a collection of memos from your analysts.
-2. Think carefully about the insights from each memo.
-3. Consolidate these into a crisp overall summary that ties together the central ideas from all of the memos. 
-4. Summarize the central points in each memo into a cohesive single narrative.
-
-DEDUPLICATION — THIS IS THE SINGLE MOST IMPORTANT REQUIREMENT:
-
-You MUST consolidate overlapping claims across all analyst memos into a SINGLE mention.
-Even if three different analysts mention the SAME claim (e.g. "up to 85% of administrative
+2. DEDUPLICATION: If multiple analysts mention the SAME claim (e.g. "up to 85% of administrative
 tasks automated", "accelerated drug discovery timelines", "remote patient monitoring"), you
 MUST mention it ONCE only, with all supporting sources consolidated into a single Sources section at the end.
 
-Process: 
+Process:
   Step 1: Read ALL memos completely.
   Step 2: List every unique substantive claim, statistic, and finding on a scratchpad.
-  Step 3: Cross off any claim that appears in more than one memo — keep only ONE instance,
+  Step 3: Cross off any claim that appears in more than one memo -- keep only ONE instance,
           consolidating all sources into that single mention.
-  Step 4: Write the report body using ONLY the deduplicated list. Do NOT restate any claim
+  Step 4: Write the report body using ONLY the deduplicated list.  Do NOT restate any claim
           that has already been written.
 
 DO NOT create four separate "### Key Findings" subsections that each restate the same
@@ -214,8 +215,8 @@ If you find yourself copying a ### Key Findings or ### Sources header from a mem
 doing it wrong.
 
 To format your report:
-  
-1. Use markdown formatting. 
+
+1. Use markdown formatting.
 2. Include no pre-amble for the report.
 3. Start your report with a single title header: ## Insights
 4. Do not mention any analyst names in your report.
@@ -223,9 +224,9 @@ To format your report:
 6. Create a final, consolidated list of sources and add to a Sources section with the `## Sources` header.
 7. List your sources in order and do not repeat.
 Do NOT invent citation numbers or reference sources that are not actually listed.
-If you cannot find a real supporting source for a claim, do NOT cite it — either find a real supporting source or state the claim without a citation.
+If you cannot find a real supporting source for a claim, do NOT cite it -- either find a real supporting source or state the claim without a citation.
 
-Here are the memos from your analysts to build your report from: 
+Here are the memos from your analysts to build your report from:
 
 {context}"""
 
@@ -241,11 +242,11 @@ Include no pre-amble for either section.
 
 Target around 100 words, crisply previewing (for introduction) or recapping (for conclusion) all of the sections of the report.
 
-Use markdown formatting. 
+Use markdown formatting.
 
 For your introduction, create a compelling title based on the research topic and use the # header for the title. The title must reflect the actual topic (e.g., # Impact of Computer Vision on the Automotive Industry), NOT the word "Introduction".
 
-For your introduction, use ## Introduction as the section header for the body of your introduction that follows the title. 
+For your introduction, use ## Introduction as the section header for the body of your introduction that follows the title.
 
 For your conclusion, use ## Conclusion as the section header.
 
@@ -255,3 +256,18 @@ own words without repeating the same numbers. Keep it to a high-level recap of t
 reiteration of specific claims.
 
 Here are the sections to reflect on for writing: {formatted_str_sections}"""
+
+# ===========================================================================
+# Exports
+# ===========================================================================
+
+__all__ = [
+    "format_persona",
+    "analyst_instructions",
+    "question_instructions",
+    "search_instructions",
+    "answer_instructions",
+    "section_writer_instructions",
+    "report_writer_instructions",
+    "intro_conclusion_instructions",
+]

@@ -1,30 +1,52 @@
-import json
-import uuid
-import asyncio
-import time
-from typing import Optional, AsyncGenerator
+"""
+FastAPI Application — Research Assistant API
+=============================================
 
-from fastapi import FastAPI, HTTPException
+Provides a RESTful JSON API and SSE (Server-Sent Events) streaming
+endpoints for the multi-perspective AI research pipeline.
+
+Endpoints
+---------
+- ``GET  /api/health``               — Health check
+- ``POST /api/research/init``        — Initialize a research session
+- ``POST /api/research/feedback``    — Submit feedback for analyst regeneration
+- ``POST /api/research/approve``    — Approve analysts and start research
+- ``GET  /api/research/stream/{id}``— SSE stream of research progress
+- ``GET  /api/research/result/{id}``— Retrieve the final report
+"""
+
+from __future__ import annotations
+
+import asyncio
+import json
+import logging
+import time
+import uuid
+from typing import Any, Dict, List, Optional
+
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from langchain_core.messages import HumanMessage
 
+from api.schemas import (
+    ApproveRequest,
+    FeedbackRequest,
+    ResearchInitRequest,
+    ResearchStatusResponse,
+)
 from src.graph import (
     build_analyst_graph,
     build_interview_graph,
     build_research_graph,
 )
 from src.state import Analyst, ResearchGraphState
-from api.schemas import (
-    ResearchInitRequest,
-    FeedbackRequest,
-    ApproveRequest,
-    ResearchStatusResponse,
-)
 
-# ============================================================
+logger = logging.getLogger(__name__)
+
+# ===========================================================================
 # Application Setup
-# ============================================================
+# ===========================================================================
 
 app = FastAPI(
     title="Research Assistant API",
@@ -32,6 +54,8 @@ app = FastAPI(
     version="1.0.0",
 )
 
+# CORS: allow all origins in development.
+# In production, restrict to specific domains.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -40,15 +64,25 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Global graph instances (lazy-loaded)
-_analyst_graph = None
-_interview_graph = None
-_research_graph = None
+# ---------------------------------------------------------------------------
+# Global State (lazy-initialised)
+# ---------------------------------------------------------------------------
 
-# In-memory session store
-sessions: dict = {}
+# Graph instances are created on first request to avoid import-time overhead.
+_analyst_graph: Any = None
+_interview_graph: Any = None
+_research_graph: Any = None
+
+# In-memory session store: thread_id -> session dict
+sessions: Dict[str, dict] = {}
+
 
 def get_graphs():
+    """Lazy-load and cache the three LangGraph instances.
+
+    Returns:
+        A tuple of (analyst_graph, interview_graph, research_graph).
+    """
     global _analyst_graph, _interview_graph, _research_graph
     if _analyst_graph is None:
         _analyst_graph = build_analyst_graph()
@@ -56,13 +90,27 @@ def get_graphs():
         _research_graph = build_research_graph(_interview_graph)
     return _analyst_graph, _interview_graph, _research_graph
 
-# ============================================================
+# ===========================================================================
 # Endpoints
-# ============================================================
+# ==========================================================================
 
 @app.post("/api/research/init", response_model=ResearchStatusResponse)
-async def init_research(request: ResearchInitRequest):
-    """Initialize a research session: generate analyst personas."""
+async def init_research(request: ResearchInitRequest) -> ResearchStatusResponse:
+    """Initialize a research session by generating analyst personas.
+
+    Creates a new session with a unique thread ID, then streams the
+    analyst-generation graph to produce diverse AI personas for the
+    given research topic.
+
+    Args:
+        request: Contains topic, max_analysts, and max_turns.
+
+    Returns:
+        A ``ResearchStatusResponse`` with the thread_id and generated analysts.
+
+    Raises:
+        HTTPException: 500 if the LLM fails to generate analysts.
+    """
     analyst_graph, _, _ = get_graphs()
 
     # Generate unique thread ID with timestamp to prevent collisions
@@ -117,8 +165,22 @@ async def init_research(request: ResearchInitRequest):
     )
 
 @app.post("/api/research/feedback")
-async def submit_feedback(request: FeedbackRequest):
-    """Submit refinement feedback for analyst panel regeneration."""
+async def submit_feedback(request: FeedbackRequest) -> ResearchStatusResponse:
+    """Submit refinement feedback for the analyst panel.
+
+    If ``feedback`` is a non-empty string, the analyst-generation graph
+    is re-invoked to produce a new set of personas.  An empty or ``null``
+    feedback value acts as implicit approval (no regeneration needed).
+
+    Args:
+        request: Contains thread_id and optional feedback string.
+
+    Returns:
+        Updated ``ResearchStatusResponse`` with possibly new analysts.
+
+    Raises:
+        HTTPException: 404 if session not found, 500 on LLM failure.
+    """
     analyst_graph, _, _ = get_graphs()
 
     if request.thread_id not in sessions:
@@ -173,8 +235,22 @@ async def submit_feedback(request: FeedbackRequest):
     )
 
 @app.post("/api/research/approve")
-async def approve_analysts(request: ApproveRequest):
-    """Approve analyst panel. The SSE stream / stream endpoint handles execution."""
+async def approve_analysts(request: ApproveRequest) -> dict:
+    """Approve the analyst panel and transition to the interviewing phase.
+
+    This endpoint signals that the user is satisfied with the current
+    analyst personas.  It updates the session status so the SSE stream
+    can proceed with the parallel interview pipeline.
+
+    Args:
+        request: Contains the thread_id to approve.
+
+    Returns:
+        A JSON dict with thread_id and updated status.
+
+    Raises:
+        HTTPException: 404 if the session is not found.
+    """
     if request.thread_id not in sessions:
         raise HTTPException(status_code=404, detail="Session not found")
 
@@ -183,8 +259,32 @@ async def approve_analysts(request: ApproveRequest):
     return {"thread_id": request.thread_id, "status": "interviewing", "message": "Research pipeline ready"}
 
 @app.get("/api/research/stream/{thread_id}")
-async def stream_research(thread_id: str):
-    """SSE stream: runs the research graph with parallel map-reduce interviews."""
+async def stream_research(thread_id: str, request: Request):
+    """Stream research progress via Server-Sent Events (SSE).
+
+    This endpoint orchestrates the full map-reduce pipeline:
+
+    1. Emits ``interview_start`` and ``thinking_start`` events for each
+       analyst (with the analyst's name, role, and affiliation).
+    2. Runs the research graph in a background executor.
+    3. Continuously emits ``interview_progress`` events while the graph runs.
+    4. Yields ``section``, ``introduction``, ``conclusion``, and
+       ``final_report`` events as they are produced.
+    5. Ends with a ``done`` event when the pipeline completes.
+
+    Reconnects are supported: if the client disconnects and reconnects,
+    the server emits a ``snapshot`` event capturing the current progress.
+
+    Args:
+        thread_id: The session identifier from ``init_research``.
+        request: The incoming HTTP request (used to detect client disconnect).
+
+    Returns:
+        A ``StreamingResponse`` with ``text/event-stream`` media type.
+
+    Raises:
+        HTTPException: 404 if the session is not found.
+    """
     if thread_id not in sessions:
         raise HTTPException(status_code=404, detail="Session not found")
 
@@ -284,10 +384,10 @@ async def stream_research(thread_id: str):
                 "final_report": "",
             }
 
-            print(f"[DEBUG] Initial state: topic={topic}, max_analysts={max_analysts}, analysts_count={len(analysts)}")
-            print(f"[DEBUG] Research thread: {research_thread}")
+            logger.debug("Initial state: topic=%s, max_analysts=%s, analysts_count=%s", topic, max_analysts, len(analysts))
+            logger.debug("Research thread: %s", research_thread)
 
-            print("[DEBUG] Starting research graph stream...")
+            logger.debug("Starting research graph stream...")
 
             # Emit initial status - parallel interviews starting
             yield f"data: {json.dumps({'type': 'status', 'payload': f'Starting {len(analysts)} parallel expert interviews...'})}\n\n"
@@ -356,7 +456,7 @@ async def stream_research(thread_id: str):
                 try:
                     events = []
                     # First stream: starts at human_feedback, pauses at human_feedback
-                    print("[DEBUG] First stream - will pause at human_feedback")
+                    logger.debug("First stream - will pause at human_feedback")
                     for event in research_graph.stream(
                         initial_state,
                         research_thread,
@@ -364,15 +464,15 @@ async def stream_research(thread_id: str):
                     ):
                         events.append(event)
 
-                    print(f"[DEBUG] First stream completed with {len(events)} events")
+                    logger.debug("First stream completed with %d events", len(events))
 
                     # Check if graph is paused at human_feedback
                     state = research_graph.get_state(research_thread)
-                    print(f"[DEBUG] Graph state after first stream: next={state.next}")
+                    logger.debug("Graph state after first stream: next=%s", state.next)
 
                     if state.next and "human_feedback" in state.next:
                         # Resume with no feedback (approved analysts)
-                        print("[DEBUG] Graph paused at human_feedback, resuming with no feedback")
+                        logger.debug("Graph paused at human_feedback, resuming with no feedback")
                         research_graph.update_state(
                             research_thread,
                             {"human_analyst_feedback": None},
@@ -380,18 +480,18 @@ async def stream_research(thread_id: str):
                         )
 
                         # Second stream: runs from human_feedback to completion
-                        print("[DEBUG] Second stream - resuming from human_feedback")
+                        logger.debug("Second stream - resuming from human_feedback")
                         for event in research_graph.stream(
                             None,
                             research_thread,
                             stream_mode="values",
                         ):
                             events.append(event)
-                        print(f"[DEBUG] Second stream completed with {len(events)} total events")
+                        logger.debug("Second stream completed with %d total events", len(events))
 
                     return events
                 except Exception as e:
-                    print(f"[DEBUG] Stream execution error: {e}")
+                    logger.debug("Stream execution error: %s", e)
                     import traceback
                     traceback.print_exc()
                     raise
@@ -521,7 +621,7 @@ async def stream_research(thread_id: str):
             try:
                 events = await asyncio.wrap_future(graph_future)
             except Exception as e:
-                print(f"[DEBUG] Graph execution failed: {e}")
+                logger.debug("Graph execution failed: %s", e)
                 import traceback
                 traceback.print_exc()
                 yield f"data: {json.dumps({'type': 'error', 'payload': f'Research execution failed: {str(e)}'})}\n\n"
@@ -530,22 +630,22 @@ async def stream_research(thread_id: str):
             # Apply timeout check
             start_time = time.time()
             if time.time() - start_time > 300.0:
-                print("[DEBUG] Stream execution timed out after 300 seconds")
+                logger.debug("Stream execution timed out after 300 seconds")
                 yield f"data: {json.dumps({'type': 'error', 'payload': 'Research execution timed out'})}\n\n"
                 return
 
-            print(f"[DEBUG] Total events from stream: {len(events)}")
+            logger.debug("Total events from stream: %d", len(events))
             for i, event in enumerate(events):
-                print(f"[DEBUG] Event {i+1} keys: {list(event.keys())}")
+                logger.debug("Event %d keys: %s", i+1, list(event.keys()))
                 if "sections" in event:
-                    print(f"[DEBUG]   Sections: {len(event['sections']) if event['sections'] else 0}")
+                    logger.debug("  Sections: %s", len(event["sections"]) if event.get("sections") else 0)
                 if "final_report" in event:
-                    print(f"[DEBUG]   Final report: {len(event['final_report']) if event['final_report'] else 0} chars")
+                    logger.debug("  Final report: %s chars", len(event["final_report"]) if event.get("final_report") else 0)
 
             if not events:
-                print("[DEBUG] WARNING: No events returned from stream!")
+                logger.warning("No events returned from stream!")
                 # Try invoking directly
-                print("[DEBUG] Trying direct invoke...")
+                logger.debug("Trying direct invoke...")
                 try:
                     result = await loop.run_in_executor(
                         None,
@@ -554,9 +654,9 @@ async def stream_research(thread_id: str):
                             research_thread,
                         )
                     )
-                    print(f"[DEBUG] Direct invoke result keys: {list(result.keys())}")
+                    logger.debug("Direct invoke result keys: %s", list(result.keys()))
                     if "final_report" in result:
-                        print(f"[DEBUG] Direct invoke final_report: {len(result['final_report'])} chars")
+                        logger.debug("Direct invoke final_report: %d chars", len(result["final_report"]))
                         # Create a final event with the report
                         events = [{
                             **initial_state,
@@ -567,7 +667,7 @@ async def stream_research(thread_id: str):
                             "conclusion": result.get("conclusion", ""),
                         }]
                 except Exception as e:
-                    print(f"[DEBUG] Direct invoke error: {e}")
+                    logger.debug("Direct invoke error: %s", e)
                     import traceback
                     traceback.print_exc()
 
@@ -575,7 +675,7 @@ async def stream_research(thread_id: str):
             # If graph didn't return enough sections, create placeholder sections
             final_sections = session.get("sections", [])
             if len(final_sections) < len(analysts):
-                print(f"[DEBUG] Only {len(final_sections)} sections returned, expected {len(analysts)}")
+                logger.debug("Only %d sections returned, expected %d", len(final_sections), len(analysts))
                 # Create placeholder sections for missing analysts
                 for i in range(len(final_sections), len(analysts)):
                     analyst = analysts[i]
@@ -587,10 +687,10 @@ async def stream_research(thread_id: str):
             # Only skip the FIRST event (initial state), not all events with analysts
             sections_yielded = 0
             for i, event in enumerate(events):
-                print(f"[DEBUG] Yielding event {i+1}/{len(events)}")
+                logger.debug("Yielding event %d/%d", i+1, len(events))
                 # Skip only the first event (initial state)
                 if i == 0:
-                    print(f"[DEBUG] Skipping initial state event")
+                    logger.debug("Skipping initial state event")
                     continue
 
                 # Check for final_report first (highest priority)
@@ -599,7 +699,7 @@ async def stream_research(thread_id: str):
                     payload = {"type": "final_report", "payload": event["final_report"]}
                     session["final_report"] = event["final_report"]
                     session["status"] = "complete"
-                    print(f"[DEBUG] Yielding final_report: {len(event['final_report'])} chars")
+                    logger.debug("Yielding final_report: %d chars", len(event["final_report"]))
                 # Check for sections - yield ALL sections, not just new ones
                 elif "sections" in event and event["sections"]:
                     sections_list = event["sections"]
@@ -611,27 +711,27 @@ async def stream_research(thread_id: str):
                             section_text = sections_list[j]
                             payload = {"type": "section", "payload": section_text}
                             sections_yielded = j + 1
-                            print(f"[DEBUG] Yielding section {j+1}/{len(sections_list)}: {len(section_text)} chars")
+                            logger.debug("Yielding section %d/%d: %d chars", j+1, len(sections_list), len(section_text))
                             yield f"data: {json.dumps(payload)}\n\n"
                             await asyncio.sleep(0.01)
                         continue
                 elif "content" in event and event["content"]:
                     payload = {"type": "report", "payload": event["content"]}
-                    print(f"[DEBUG] Yielding report: {len(event['content'])} chars")
+                    logger.debug("Yielding report: %d chars", len(event["content"]))
                 elif "introduction" in event and event["introduction"]:
                     payload = {"type": "introduction", "payload": event["introduction"]}
-                    print(f"[DEBUG] Yielding introduction: {len(event['introduction'])} chars")
+                    logger.debug("Yielding introduction: %d chars", len(event["introduction"]))
                 elif "conclusion" in event and event["conclusion"]:
                     payload = {"type": "conclusion", "payload": event["conclusion"]}
-                    print(f"[DEBUG] Yielding conclusion: {len(event['conclusion'])} chars")
+                    logger.debug("Yielding conclusion: %d chars", len(event["conclusion"]))
 
                 if payload:
-                    print(f"[DEBUG] Sending payload type: {payload['type']}")
+                    logger.debug("Sending payload type: %s", payload["type"])
                     yield f"data: {json.dumps(payload)}\n\n"
                     # Force flush by yielding control
                     await asyncio.sleep(0.01)
 
-            print("[DEBUG] Sending done event")
+            logger.debug("Sending done event")
             yield f"data: {json.dumps({'type': 'done', 'payload': ''})}\n\n"
             await asyncio.sleep(0.01)
 
@@ -639,8 +739,8 @@ async def stream_research(thread_id: str):
             import traceback
             tb = traceback.format_exc()
             error_detail = f"{type(e).__name__}: {str(e)}"
-            print(f"[DEBUG] ERROR in event_generator: {error_detail}")
-            print(f"[DEBUG] Traceback: {tb}")
+            logger.error("ERROR in event_generator: %s", error_detail)
+            logger.debug("Traceback: %s", tb)
             yield f"data: {json.dumps({'type': 'error', 'payload': error_detail})}\n\n"
 
     return StreamingResponse(
@@ -673,9 +773,16 @@ async def get_result(thread_id: str):
     }
 
 @app.get("/api/health")
-async def health():
+async def health() -> dict:
+    """Health check endpoint.
+
+    Returns:
+        A simple JSON payload confirming the service is up.
+    """
     return {"status": "ok"}
+
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

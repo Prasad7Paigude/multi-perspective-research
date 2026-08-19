@@ -1,20 +1,35 @@
+"""
+Graph Nodes
+===========
+
+Node functions for the LangGraph research pipeline.  Each function
+implements a step in the multi-agent workflow: analyst generation,
+expert interviews, and report synthesis.
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+import re
+
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, get_buffer_string
 from langgraph.graph import END
 from langgraph.types import Send
-import json
-import re
 
 from config.settings import llm
 from src.state import (
     Analyst, Perspectives, GenerateAnalystsState,
-    InterviewState, ResearchGraphState, SearchQuery
+    InterviewState, ResearchGraphState, SearchQuery,
 )
 from src.prompts import (
     analyst_instructions, question_instructions, search_instructions,
     answer_instructions, section_writer_instructions, format_persona,
-    report_writer_instructions, intro_conclusion_instructions
+    report_writer_instructions, intro_conclusion_instructions,
 )
 from utils.tools import tavily_search, WikipediaLoader
+
+logger = logging.getLogger(__name__)
 
 
 # ============================================================
@@ -375,7 +390,8 @@ def write_section(state: InterviewState):
     analyst = state["analyst"]
 
     system_message = section_writer_instructions.format(
-        persona=format_persona(analyst)
+        persona=format_persona(analyst),
+        context="\n".join(context) if context else "No sources available"
     )
     section = llm.invoke(
         [SystemMessage(content=system_message)] +
@@ -458,7 +474,26 @@ def write_conclusion(state: ResearchGraphState):
     return {"conclusion": conclusion.content}
 
 
-def finalize_report(state: ResearchGraphState):
+def finalize_report(state: ResearchGraphState) -> dict:
+    """Assemble the final report from its components.
+
+    Performs the following post-processing:
+
+    1. Strips the leading ``## Insights`` header from the body.
+    2. Normalises markdown heading spacing.
+    3. Extracts and deduplicates sources from all ``## Sources``
+       and ``### Sources`` sections.
+    4. Remaps inline citations (e.g. ``[5]``) to sequential numbers.
+    5. Fixes common capitalisation artifacts (e.g. ``AGentic``).
+    6. Reassembles introduction, body, conclusion, and sources.
+
+    Args:
+        state: Contains ``content``, ``introduction``, ``conclusion``,
+            ``sections``, and ``topic``.
+
+    Returns:
+        A dict with keys ``"final_report"`` and ``"sections"``.
+    """
     content = state["content"]
     if content.startswith("## Insights"):
         content = content[len("## Insights"):].lstrip()

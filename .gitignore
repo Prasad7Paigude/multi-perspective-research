@@ -1,22 +1,75 @@
 # Environments
 .env
+.env.*
+!/.env.example
 lc-academy-env/
+.venv/
+venv/
+env/
+
+# Python
 __pycache__/
-*.pyc
-*.pyo
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+*.egg
+dist/
+build/
+eggs/
+parts/
+bin/
+lib/
+lib64/
+include/
+local/
+pyvenv.cfg
+pip-log.txt
+pip-delete-this-directory.txt
 
 # IDE
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
 
 # OS
 Thumbs.db
 .DS_Store
+.DS_Store?
+._*
 
-# Notebook checkpoints
+# Jupyter Notebook
 .ipynb_checkpoints/
 
-# Python
-*.egg-info/
-dist/
-build/
+# Testing / Coverage
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+.hypothesis/
+.pytest_cache/
+
+# Virtual environments
+*.virtualenv
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# Debugging
+*.log
+debug.log
+npm-debug.log*
+yarn-debug.log*
+
+# Cline Agent
+.agent/
+.agents/
+
+# Windows
+nul
