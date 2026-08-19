@@ -29,7 +29,7 @@ In the AI landscape, there is a growing need to understand how **multi-agent sys
 - Showcases **human-in-the-loop feedback** and **real-time streaming**.
 
 ### Graph-Based Architecture
-Your project implements **three LangGraph state machines** that work together to orchestrate the research pipeline:
+This project implements **three LangGraph state machines** that work together to orchestrate the research pipeline:
 
 #### 1. Analyst Generation Graph
 ![Analyst Generation Graph](media/analyst%20generation%20graph.png)
